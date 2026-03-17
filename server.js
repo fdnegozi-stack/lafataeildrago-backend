@@ -133,14 +133,15 @@ app.get('/api/prodotti', async (req, res) => {
     }
 
     const rows = await pool.query(`
-      SELECT DISTINCT p.id, p.codice_fd, p.descrizione, p.categoria,
+      SELECT p.id, p.codice_fd, p.descrizione, p.categoria,
         p.sottocategoria, p.prezzo, p.dimensioni, p.novita, p.foto_url,
         json_object_agg(g.negozio_id, g.giacenza) AS giacenze
       FROM prodotti p
       JOIN giacenze g ON g.prodotto_id = p.id
       ${where}
-      GROUP BY p.id
-      ORDER BY CAST(p.codice_fd AS INTEGER)
+      GROUP BY p.id, p.codice_fd, p.descrizione, p.categoria,
+        p.sottocategoria, p.prezzo, p.dimensioni, p.novita, p.foto_url
+      ORDER BY CAST(NULLIF(regexp_replace(p.codice_fd, '[^0-9]', '', 'g'), '') AS INTEGER) NULLS LAST
       LIMIT $${i} OFFSET $${i+1}
     `, [...params, parseInt(limit), parseInt(offset)]);
 
