@@ -8,8 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // IP del laptop in negozio — aggiorna con IP hotspot quando in negozio
-const LAPTOP_IP = process.env.LAPTOP_IP || '192.168.43.100';
-const LAPTOP_PORT = 3000;
+const TUNNEL_URL = process.env.TUNNEL_URL || 'https://tile-hiv-petition-weighted.trycloudflare.com';
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
