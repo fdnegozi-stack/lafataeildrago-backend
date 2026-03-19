@@ -356,16 +356,26 @@ function startListening() {
       isBusy = false; setStatus('idle'); return;
     }
 
-    // Risposta Tania in streaming
+    // Mostra cosa ha capito
+    showResponse('🎙️ Ho capito: "' + testo + '" — sto cercando...');
     setStatus('think');
-    showResponse('');
-    await fetchStreaming(
-      SERVER + '/api/voice-answer',
-      { text: testo, lang: LANG, mode: 'mobile' },
-      (token) => { responseBubble.textContent += token; },
-      ()      => { /* done */ },
-      (err)   => { showResponse('Non ho trovato informazioni su questo.'); }
-    );
+
+    try {
+      let ricevuto = false;
+      await fetchStreaming(
+        SERVER + '/api/voice-answer',
+        { text: testo, lang: LANG, mode: 'mobile' },
+        (token) => {
+          if (!ricevuto) { showResponse(''); ricevuto = true; }
+          responseBubble.textContent += token;
+        },
+        () => { /* done */ },
+        (err) => { showResponse('⚠️ Errore: ' + err); }
+      );
+      if (!ricevuto) showResponse('⚠️ Nessuna risposta ricevuta dal server.');
+    } catch(e) {
+      showResponse('⚠️ Eccezione: ' + e.message);
+    }
 
     isBusy = false;
     setStatus('idle');
