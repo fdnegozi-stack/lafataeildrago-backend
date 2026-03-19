@@ -47,10 +47,12 @@ app.get('/app', (req, res) => {
 
 // Helper: proxy una richiesta al laptop locale
 function proxyToLaptop(path, req, res) {
+  const https = require('https');
   const payload = JSON.stringify(req.body);
+  const url = new URL(TUNNEL_URL);
   const options = {
-    hostname: LAPTOP_IP,
-    port: LAPTOP_PORT,
+    hostname: url.hostname,
+    port: 443,
     path: path,
     method: 'POST',
     headers: {
@@ -60,21 +62,19 @@ function proxyToLaptop(path, req, res) {
     timeout: 60000
   };
 
-  const proxyReq = http.request(options, (proxyRes) => {
-    // Passa gli header del laptop al client (incluso SSE se streaming)
+  const proxyReq = https.request(options, (proxyRes) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     Object.keys(proxyRes.headers).forEach(key => {
       res.setHeader(key, proxyRes.headers[key]);
     });
     res.status(proxyRes.statusCode);
-    // Pipe diretto — funziona sia per JSON che per SSE streaming
     proxyRes.pipe(res);
   });
 
   proxyReq.on('error', () => {
     res.status(503).json({
       ok: false,
-      error: 'Laptop negozio non raggiungibile. Assicurati di essere connesso alla rete del negozio.'
+      error: 'Laptop negozio non raggiungibile. Assicurati che il tunnel Cloudflare sia attivo.'
     });
   });
 
