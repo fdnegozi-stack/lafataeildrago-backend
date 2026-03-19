@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0800">
+<title>La Fata & il Drago</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: radial-gradient(ellipse at center, #1a1200 0%, #0a0800 60%, #000 100%);
+    min-height: 100vh;
+    font-family: 'Georgia', serif;
+    color: #d4af37;
+    overflow-x: hidden;
+  }
+
+  /* ── Particelle ── */
+  .particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  .particle {
+    position: absolute; width: 2px; height: 2px;
+    background: #d4af37; border-radius: 50%; opacity: 0;
+    animation: floatUp linear infinite;
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(100vh); opacity: 0; }
+    10%  { opacity: 0.5; }
+    90%  { opacity: 0.2; }
+    100% { transform: translateY(-5vh); opacity: 0; }
+  }
+
+  /* ── Layout ── */
+  .main {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px 16px 30px;
+    gap: 18px; min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header { text-align: center; }
+  .header h1 {
+    font-size: 1.5rem; letter-spacing: 0.18em; color: #d4af37;
+    text-shadow: 0 0 15px rgba(212,175,55,0.5);
+  }
+  .header .tagline { font-size: 0.72rem; color: #8a6818; letter-spacing: 0.25em; text-transform: uppercase; margin-top: 4px; }
+
+  /* ── Avatar ── */
+  .avatar-area { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+
+  .avatar-frame {
+    position: relative;
+    border: 2px solid #d4af37;
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 0 30px rgba(212,175,55,0.25);
+    width: 100%; max-width: 320px;
+    aspect-ratio: 9/16; max-height: 40vh;
+    background: #0a0800;
+  }
+  .avatar-frame video, .avatar-frame img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+
+  /* Fase entrata — animazione fade-in */
+  .avatar-frame.entering { animation: avatarEnter 1.2s ease-out forwards; }
+  @keyframes avatarEnter {
+    0%   { opacity: 0; transform: scale(0.92); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  .status-ring {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #2a2a2a; border: 2px solid #444; transition: all 0.3s;
+  }
+  .status-ring.idle   { background: #d4af37; box-shadow: 0 0 6px #d4af37; animation: pulse 2s infinite; }
+  .status-ring.listen { background: #4fc3f7; box-shadow: 0 0 6px #4fc3f7; animation: pulse 0.5s infinite; }
+  .status-ring.think  { background: #ce93d8; box-shadow: 0 0 6px #ce93d8; }
+  .status-ring.speak  { background: #a5d6a7; box-shadow: 0 0 6px #a5d6a7; animation: pulse 0.3s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .tania-name { font-size: 1.1rem; letter-spacing: 0.15em; color: #d4af37; text-shadow: 0 0 8px rgba(212,175,55,0.4); }
+
+  /* ── Bolla risposta ── */
+  .response-bubble {
+    background: rgba(26,20,0,0.9); border: 1px solid rgba(212,175,55,0.35);
+    border-radius: 12px; padding: 12px 16px;
+    font-size: 0.9rem; line-height: 1.6; color: #e8d5a0;
+    text-align: center; width: 100%; max-width: 400px; min-height: 54px;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.4s;
+  }
+  .response-bubble.hidden { opacity: 0; }
+
+  /* ── Pulsanti azione ── */
+  .action-buttons {
+    display: flex; gap: 24px; align-items: flex-end; justify-content: center;
+  }
+
+  .action-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    cursor: pointer;
+  }
+  .action-btn .btn-circle {
+    width: 64px; height: 64px; border-radius: 50%;
+    border: 2px solid #d4af37; background: rgba(26,20,0,0.8);
+    color: #d4af37; font-size: 1.6rem;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 16px rgba(212,175,55,0.2);
+    transition: all 0.2s;
+  }
+  .action-btn .btn-circle:hover  { box-shadow: 0 0 24px rgba(212,175,55,0.5); transform: scale(1.05); }
+  .action-btn .btn-circle.active { background: rgba(79,195,247,0.2); border-color: #4fc3f7; color: #4fc3f7; }
+  .action-btn .btn-label { font-size: 0.68rem; color: #8a6818; letter-spacing: 0.12em; text-transform: uppercase; }
+
+  /* ── Preview foto ── */
+  .photo-preview {
+    display: none; width: 100%; max-width: 320px;
+    border: 1px solid rgba(212,175,55,0.3); border-radius: 10px; overflow: hidden;
+  }
+  .photo-preview.show { display: block; }
+  .photo-preview img { width: 100%; display: block; }
+  .photo-result {
+    padding: 10px 14px; background: rgba(26,20,0,0.9);
+    font-size: 0.82rem; color: #c8b060; line-height: 1.5; text-align: center;
+  }
+
+  /* ── Input file nascosto ── */
+  #cameraInput { display: none; }
+
+  /* ── Overlay ascolto ── */
+  .listening-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75); z-index: 100;
+    flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+  }
+  .listening-overlay.show { display: flex; }
+  .listening-text { font-size: 1.3rem; color: #4fc3f7; letter-spacing: 0.15em; text-shadow: 0 0 15px rgba(79,195,247,0.6); }
+  .wave-bars { display: flex; gap: 5px; align-items: center; height: 40px; }
+  .wave-bar { width: 7px; background: #4fc3f7; border-radius: 4px; animation: wave 0.8s ease-in-out infinite; }
+  .wave-bar:nth-child(2){animation-delay:.1s}.wave-bar:nth-child(3){animation-delay:.2s}
+  .wave-bar:nth-child(4){animation-delay:.3s}.wave-bar:nth-child(5){animation-delay:.4s}
+  @keyframes wave { 0%,100%{height:8px} 50%{height:36px} }
+  .cancel-btn {
+    padding: 8px 26px; border: 1px solid rgba(212,175,55,0.4); border-radius: 20px;
+    background: transparent; color: #8a6818; font-size: 0.82rem; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="particles" id="particles"></div>
+<input type="file" id="cameraInput" accept="image/*" capture="environment">
+
+<div class="main">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>✦ la Fata &amp; il Drago ✦</h1>
+    <p class="tagline">Bibione · Negozio Fantasy</p>
+  </div>
+
+  <!-- Avatar -->
+  <div class="avatar-area">
+    <div class="avatar-frame entering" id="avatarFrame">
+      <img src="/logo.png" alt="Tania" id="avatarImg" style="object-fit:contain; padding:16px;"/>
+      <div class="status-ring idle" id="statusRing"></div>
+    </div>
+    <p class="tania-name">✦ Tania ✦</p>
+  </div>
+
+  <!-- Risposta -->
+  <div class="response-bubble" id="responseBubble">
+    Benvenuto! Sono Tania. Fotografa un prodotto o fai una domanda — ti aiuto a scoprire la magia del negozio! ✨
+  </div>
+
+  <!-- Anteprima foto -->
+  <div class="photo-preview" id="photoPreview">
+    <img id="photoImg" src="" alt="foto prodotto"/>
+    <div class="photo-result" id="photoResult"></div>
+  </div>
+
+  <!-- Pulsanti -->
+  <div class="action-buttons">
+    <div class="action-btn" onclick="openCamera()">
+      <div class="btn-circle" id="cameraBtn">📷</div>
+      <span class="btn-label">Fotografa</span>
+    </div>
+    <div class="action-btn" onclick="startListening()">
+      <div class="btn-circle" id="micBtn">🎙️</div>
+      <span class="btn-label">Chiedi</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Overlay ascolto -->
+<div class="listening-overlay" id="listeningOverlay">
+  <p class="listening-text">Sto ascoltando...</p>
+  <div class="wave-bars">
+    <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+    <div class="wave-bar"></div><div class="wave-bar"></div>
+  </div>
+  <button class="cancel-btn" onclick="cancelListening()">✕ Annulla</button>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────
+// Legge una risposta SSE in streaming da Ollama e aggiorna il testo token per token
+async function fetchStreaming(url, body, onToken, onDone, onError) {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const json = JSON.parse(line.slice(6));
+          if (json.token)  onToken(json.token);
+          if (json.done)   onDone();
+          if (json.error)  onError(json.error);
+        } catch(e) {}
+      }
+    }
+  } catch(e) {
+    onError(e.message);
+  }
+}
+
+// Railway fa da proxy HTTPS → laptop locale
+const SERVER = 'https://lafataeildrago-backend-production.up.railway.app';
+const LANG = navigator.language || 'it-IT';
+
+// ── Particelle ──────────────────────────────────────────────────
+const pContainer = document.getElementById('particles');
+for (let i = 0; i < 25; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.style.cssText = `left:${Math.random()*100}%;animation-duration:${10+Math.random()*14}s;animation-delay:${Math.random()*12}s;`;
+  pContainer.appendChild(p);
+}
+
+// ── Stato ───────────────────────────────────────────────────────
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let isBusy = false;
+
+const statusRing      = document.getElementById('statusRing');
+const responseBubble  = document.getElementById('responseBubble');
+const listeningOverlay = document.getElementById('listeningOverlay');
+const micBtn          = document.getElementById('micBtn');
+const cameraInput     = document.getElementById('cameraInput');
+const photoPreview    = document.getElementById('photoPreview');
+const photoImg        = document.getElementById('photoImg');
+const photoResult     = document.getElementById('photoResult');
+
+function setStatus(s) { statusRing.className = 'status-ring ' + s; }
+function showResponse(text) { responseBubble.textContent = text; }
+
+// ── CAMERA / VISUAL SEARCH ───────────────────────────────────────
+function openCamera() {
+  if (isBusy) return;
+  cameraInput.click();
+}
+
+cameraInput.addEventListener('change', async () => {
+  const file = cameraInput.files[0];
+  if (!file) return;
+  isBusy = true;
+  setStatus('think');
+
+  // Mostra preview
+  const url = URL.createObjectURL(file);
+  photoImg.src = url;
+  photoPreview.classList.add('show');
+  photoResult.textContent = '🔍 Sto cercando il prodotto...';
+  showResponse('Analisi in corso...');
+
+  try {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const res = await fetch(SERVER + '/api/search', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (data.results && data.results.length > 0) {
+      const top = data.results[0];
+      // Chiedi descrizione a Tania
+      setStatus('speak');
+      showResponse('');
+      await fetchStreaming(
+        SERVER + '/api/avatar-response',
+        { prodotto: top, lingua: LANG, mode: 'mobile' },
+        (token) => { responseBubble.textContent += token; },
+        ()      => { /* done */ },
+        (err)   => { showResponse(`Ho trovato: ${top.nome}`); }
+      );
+      photoResult.textContent = `${top.nome} — €${top.prezzo}`;
+    } else {
+      showResponse('Non ho riconosciuto il prodotto. Riprova con una foto più nitida.');
+      photoResult.textContent = 'Prodotto non riconosciuto';
+    }
+  } catch(e) {
+    showResponse('Errore durante la ricerca. Riprova.');
+    photoResult.textContent = '';
+  }
+
+  isBusy = false;
+  setStatus('idle');
+  cameraInput.value = '';
+});
+
+// ── MICROFONO / VOICE ────────────────────────────────────────────
+async function startListening() {
+  if (isBusy) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = handleAudioStop;
+    mediaRecorder.start();
+    isRecording = true;
+    isBusy = true;
+    micBtn.classList.add('active');
+    listeningOverlay.classList.add('show');
+    setStatus('listen');
+    setTimeout(() => { if (isRecording) stopListening(); }, 8000);
+  } catch(e) {
+    showResponse('⚠️ Microfono non disponibile. Controlla i permessi del browser.');
+  }
+}
+
+function stopListening() {
+  if (!isRecording) return;
+  isRecording = false;
+  mediaRecorder.stop();
+  mediaRecorder.stream.getTracks().forEach(t => t.stop());
+  listeningOverlay.classList.remove('show');
+  micBtn.classList.remove('active');
+  setStatus('think');
+}
+
+function cancelListening() {
+  isRecording = false;
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    mediaRecorder.stop();
+  }
+  listeningOverlay.classList.remove('show');
+  micBtn.classList.remove('active');
+  setStatus('idle');
+  isBusy = false;
+  audioChunks = [];
+}
+
+async function handleAudioStop() {
+  if (audioChunks.length === 0) { isBusy = false; setStatus('idle'); return; }
+
+  const blob = new Blob(audioChunks, { type: 'audio/webm' });
+
+  // RMS check
+  try {
+    const arrayBuf = await blob.arrayBuffer();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const decoded = await audioCtx.decodeAudioData(arrayBuf);
+    const ch = decoded.getChannelData(0);
+    let sum = 0;
+    for (let i = 0; i < ch.length; i++) sum += ch[i] ** 2;
+    const rms = Math.sqrt(sum / ch.length);
+    if (rms < 0.005) {
+      showResponse('Non ho sentito nulla. Riprova avvicinando il telefono.');
+      isBusy = false; setStatus('idle'); return;
+    }
+  } catch(e) { /* ignora errori decode */ }
+
+  try {
+    // 1. Trascrivi
+    const formData = new FormData();
+    formData.append('audio', blob, 'audio.webm');
+    formData.append('lang', LANG);
+    const voiceRes = await fetch(SERVER + '/api/voice', { method: 'POST', body: formData });
+    const voiceData = await voiceRes.json();
+
+    if (!voiceData.text || voiceData.text.trim().length < 2) {
+      showResponse('Non ho capito. Puoi ripetere?');
+      isBusy = false; setStatus('idle'); return;
+    }
+
+    // 2. Risposta Tania in streaming
+    setStatus('speak');
+    showResponse('');
+    await fetchStreaming(
+      SERVER + '/api/voice-answer',
+      { text: voiceData.text, lang: LANG, mode: 'mobile' },
+      (token) => { responseBubble.textContent += token; },
+      ()      => { /* done */ },
+      (err)   => { showResponse('Non ho trovato informazioni su questo.'); }
+    );
+
+  } catch(e) {
+    showResponse('Errore di connessione. Sei connesso alla rete del negozio?');
+  }
+
+  isBusy = false;
+  setStatus('idle');
+}
+</script>
+</body>
+</html>
