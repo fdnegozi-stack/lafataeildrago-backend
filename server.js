@@ -36,16 +36,10 @@ app.get('/health', (req, res) => {
 // ============================================================
 // PWA — serve la pagina mobile ai clienti
 // ============================================================
+const path = require('path');
+
 app.get('/app', (req, res) => {
-  // Redirect al laptop locale — il cliente deve essere sulla stessa rete
-  // Railway serve solo come entry point HTTPS
-  res.send(`<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<meta http-equiv="refresh" content="0; url=http://${LAPTOP_IP}:${LAPTOP_PORT}/app">
-<script>window.location.href='http://${LAPTOP_IP}:${LAPTOP_PORT}/app';</script>
-</head><body>
-<p>Reindirizzamento in corso...</p>
-</body></html>`);
+  res.sendFile(path.join(__dirname, 'mobile.html'));
 });
 
 // ============================================================
