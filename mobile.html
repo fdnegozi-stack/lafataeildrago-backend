@@ -254,9 +254,6 @@ for (let i = 0; i < 25; i++) {
 }
 
 // ── Stato ───────────────────────────────────────────────────────
-let mediaRecorder = null;
-let audioChunks = [];
-let isRecording = false;
 let isBusy = false;
 
 const statusRing      = document.getElementById('statusRing');
@@ -324,100 +321,85 @@ cameraInput.addEventListener('change', async () => {
   cameraInput.value = '';
 });
 
-// ── MICROFONO / VOICE ────────────────────────────────────────────
-async function startListening() {
+// ── MICROFONO / VOICE — Web Speech API (nessun conflitto con Chrome) ──
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+
+function startListening() {
   if (isBusy) return;
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
-    mediaRecorder.onstop = handleAudioStop;
-    mediaRecorder.start();
-    isRecording = true;
+
+  if (!SpeechRecognition) {
+    showResponse('⚠️ Il tuo browser non supporta il riconoscimento vocale. Prova Chrome.');
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.lang = LANG;
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
     isBusy = true;
     micBtn.classList.add('active');
     listeningOverlay.classList.add('show');
     setStatus('listen');
-    setTimeout(() => { if (isRecording) stopListening(); }, 8000);
-  } catch(e) {
-    showResponse('⚠️ Microfono non disponibile. Controlla i permessi del browser.');
-  }
-}
+  };
 
-function stopListening() {
-  if (!isRecording) return;
-  isRecording = false;
-  mediaRecorder.stop();
-  mediaRecorder.stream.getTracks().forEach(t => t.stop());
-  listeningOverlay.classList.remove('show');
-  micBtn.classList.remove('active');
-  setStatus('think');
-}
+  recognition.onresult = async (event) => {
+    const testo = event.results[0][0].transcript.trim();
+    listeningOverlay.classList.remove('show');
+    micBtn.classList.remove('active');
 
-function cancelListening() {
-  isRecording = false;
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stream.getTracks().forEach(t => t.stop());
-    mediaRecorder.stop();
-  }
-  listeningOverlay.classList.remove('show');
-  micBtn.classList.remove('active');
-  setStatus('idle');
-  isBusy = false;
-  audioChunks = [];
-}
-
-async function handleAudioStop() {
-  if (audioChunks.length === 0) { isBusy = false; setStatus('idle'); return; }
-
-  const blob = new Blob(audioChunks, { type: 'audio/webm' });
-
-  // RMS check
-  try {
-    const arrayBuf = await blob.arrayBuffer();
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const decoded = await audioCtx.decodeAudioData(arrayBuf);
-    const ch = decoded.getChannelData(0);
-    let sum = 0;
-    for (let i = 0; i < ch.length; i++) sum += ch[i] ** 2;
-    const rms = Math.sqrt(sum / ch.length);
-    if (rms < 0.005) {
-      showResponse('Non ho sentito nulla. Riprova avvicinando il telefono.');
-      isBusy = false; setStatus('idle'); return;
-    }
-  } catch(e) { /* ignora errori decode */ }
-
-  try {
-    // 1. Trascrivi
-    const formData = new FormData();
-    formData.append('audio', blob, 'audio.webm');
-    formData.append('lang', LANG);
-    const voiceRes = await fetch(SERVER + '/api/voice', { method: 'POST', body: formData });
-    const voiceData = await voiceRes.json();
-
-    if (!voiceData.text || voiceData.text.trim().length < 2) {
+    if (!testo || testo.length < 2) {
       showResponse('Non ho capito. Puoi ripetere?');
       isBusy = false; setStatus('idle'); return;
     }
 
-    // 2. Risposta Tania in streaming
-    setStatus('speak');
+    // Risposta Tania in streaming
+    setStatus('think');
     showResponse('');
     await fetchStreaming(
       SERVER + '/api/voice-answer',
-      { text: voiceData.text, lang: LANG, mode: 'mobile' },
+      { text: testo, lang: LANG, mode: 'mobile' },
       (token) => { responseBubble.textContent += token; },
       ()      => { /* done */ },
       (err)   => { showResponse('Non ho trovato informazioni su questo.'); }
     );
 
-  } catch(e) {
-    showResponse('Errore di connessione. Sei connesso alla rete del negozio?');
-  }
+    isBusy = false;
+    setStatus('idle');
+  };
 
-  isBusy = false;
+  recognition.onerror = (event) => {
+    listeningOverlay.classList.remove('show');
+    micBtn.classList.remove('active');
+    isBusy = false;
+    setStatus('idle');
+    if (event.error === 'no-speech') {
+      showResponse('Non ho sentito nulla. Riprova.');
+    } else if (event.error === 'not-allowed') {
+      showResponse('⚠️ Permesso microfono negato. Controlla le impostazioni del browser.');
+    } else {
+      showResponse('Errore microfono. Riprova.');
+    }
+  };
+
+  recognition.onend = () => {
+    listeningOverlay.classList.remove('show');
+    micBtn.classList.remove('active');
+    if (isBusy) { isBusy = false; setStatus('idle'); }
+  };
+
+  recognition.start();
+}
+
+function cancelListening() {
+  if (recognition) recognition.abort();
+  listeningOverlay.classList.remove('show');
+  micBtn.classList.remove('active');
   setStatus('idle');
+  isBusy = false;
 }
 </script>
 </body>
