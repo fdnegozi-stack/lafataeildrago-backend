@@ -245,7 +245,9 @@ async function fetchStreaming(url, body, onToken, onDone, onError) {
       if (json.error) { onError(json.error); return; }
     } catch(e) {}
 
-    onError('Risposta non valida dal server');
+    // DEBUG — mostra risposta raw
+    onToken('RAW[' + text.substring(0, 300) + ']');
+    onDone();
   } catch(e) {
     onError(e.message);
   }
