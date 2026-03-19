@@ -208,7 +208,7 @@
 
 <script>
 // ── Config ──────────────────────────────────────────────────────
-// Legge una risposta SSE in streaming da Ollama e aggiorna il testo token per token
+// Chiamata JSON semplice (Railway bufferizza SSE, usiamo JSON diretto)
 async function fetchStreaming(url, body, onToken, onDone, onError) {
   try {
     const res = await fetch(url, {
@@ -216,25 +216,36 @@ async function fetchStreaming(url, body, onToken, onDone, onError) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
+
+    // Leggi la risposta come testo raw — potrebbe essere SSE o JSON
+    const text = await res.text();
+
+    // Prova a estrarre da SSE (data: {...} lines)
+    const lines = text.split('\n').filter(l => l.startsWith('data: '));
+    if (lines.length > 0) {
+      let fullText = '';
       for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
         try {
           const json = JSON.parse(line.slice(6));
-          if (json.token)  onToken(json.token);
-          if (json.done)   onDone();
-          if (json.error)  onError(json.error);
+          if (json.token) fullText += json.token;
+          if (json.error) { onError(json.error); return; }
         } catch(e) {}
       }
+      if (fullText) { onToken(fullText); onDone(); return; }
     }
+
+    // Prova come JSON normale
+    try {
+      const json = JSON.parse(text);
+      if (json.answer || json.text) {
+        onToken(json.answer || json.text);
+        onDone();
+        return;
+      }
+      if (json.error) { onError(json.error); return; }
+    } catch(e) {}
+
+    onError('Risposta non valida dal server');
   } catch(e) {
     onError(e.message);
   }
