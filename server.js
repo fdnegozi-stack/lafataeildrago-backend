@@ -247,6 +247,6 @@ app.listen(PORT, () => {
   console.log('');
   console.log('  La Fata e il Drago — Backend API');
   console.log(`  Porta: ${PORT}`);
-  console.log(`  Laptop locale: ${LAPTOP_IP}:${LAPTOP_PORT}`);
+  console.log(`  Tunnel URL: ${process.env.TUNNEL_URL || 'non configurato'}`);
   console.log('');
 });
