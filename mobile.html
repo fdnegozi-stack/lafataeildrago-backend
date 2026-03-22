@@ -141,7 +141,7 @@
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;
   cursor:pointer;
 ">
-  <img id="introLogo" src="https://raw.githubusercontent.com/fdnegozi-stack/lafataeildrago-backend/main/stemma_trasparente.png" 
+  <img id="introLogo" src="https://fdnegozi-stack.github.io/lafataeildrago-backend/stemma%20trasparente.png" 
     alt="La Fata & il Drago"
     style="width:140px;height:140px;object-fit:contain;border-radius:50%;
     animation:logoPulse 2s ease-in-out infinite;
@@ -151,7 +151,7 @@
     <p style="color:#d4af37;font-family:Georgia,serif;font-size:1.4rem;letter-spacing:0.2em;text-shadow:0 0 20px rgba(212,175,55,0.8);">✦ la Fata &amp; il Drago ✦</p>
     <div style="display:flex;align-items:center;gap:10px;animation:tapBounce 1.5s ease-in-out infinite;">
       <span style="font-size:1.8rem;">👆</span>
-      <span style="color:#a07830;font-family:Georgia,serif;font-size:0.9rem;letter-spacing:0.15em;">tocca per iniziare</span>
+      <span id="toccaTesto" style="color:#a07830;font-family:Georgia,serif;font-size:0.9rem;letter-spacing:0.15em;">tocca per iniziare</span>
     </div>
   </div>
 </div>
@@ -162,14 +162,14 @@
 <div class="avatar-frame" id="avatarFrame">
   <video class="vid-layer hidden" id="vidA" playsinline muted></video>
   <video class="vid-layer hidden" id="vidB" playsinline muted></video>
-  <img class="logo-fallback" id="logoFallback" src="https://raw.githubusercontent.com/fdnegozi-stack/lafataeildrago-backend/main/stemma_trasparente.png" alt="Tania"/>
+  <img class="logo-fallback" id="logoFallback" src="https://fdnegozi-stack.github.io/lafataeildrago-backend/stemma%20trasparente.png" alt="Tania"/>
   <div class="status-ring idle" id="statusRing"></div>
 </div>
 
 <div class="main">
   <!-- Logo in alto a sinistra -->
   <div class="logo-top">
-    <img src="https://raw.githubusercontent.com/fdnegozi-stack/lafataeildrago-backend/main/stemma_trasparente.png" alt="F&D"/>
+    <img src="https://fdnegozi-stack.github.io/lafataeildrago-backend/stemma%20trasparente.png" alt="F&D"/>
   </div>
 
   <div class="response-bubble" id="responseBubble">
@@ -193,7 +193,7 @@
 </div>
 
 <div class="listening-overlay" id="listeningOverlay">
-  <p class="listening-text">Sto ascoltando...</p>
+  <p class="listening-text" id="ascoltaTesto">Sto ascoltando...</p>
   <div class="wave-bars">
     <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
     <div class="wave-bar"></div><div class="wave-bar"></div>
@@ -233,6 +233,29 @@ const SERVER = 'https://common-gore-productive-streets.trycloudflare.com';
 const LINGUE_SUPPORTATE = ['it','en','de','fr','es','nl','pl','cs','sk','hu','ro','bg','sl','hr','sr','bs','sq','el','uk','ru','et','lv','lt','sv','no','da','fi'];
 const _langRaw = (navigator.language || 'it').split('-')[0].toLowerCase();
 const LANG = LINGUE_SUPPORTATE.includes(_langRaw) ? _langRaw : 'it';
+
+// ── Traduzioni UI ────────────────────────────────────────────────
+const I18N = {
+  tocca:    { it:'tocca per iniziare', en:'tap to begin', de:'tippen zum Starten', fr:'touchez pour commencer',
+               es:'toca para empezar', nl:'tik om te beginnen', pl:'dotknij, aby zacząć', cs:'dotkněte se pro start',
+               sk:'dotknite sa pre štart', hu:'érintse meg a kezdéshez', ro:'atingeți pentru a începe',
+               bg:'докоснете за начало', sl:'dotaknite se za začetek', hr:'dodirnite za početak',
+               sr:'dodirnite za početak', bs:'dodirnite za početak', sq:'prekni për të filluar',
+               el:'αγγίξτε για να ξεκινήσετε', uk:'торкніться, щоб почати', ru:'нажмите для начала',
+               et:'puudutage alustamiseks', lv:'pieskarieties, lai sāktu', lt:'palieskite, norėdami pradėti',
+               sv:'tryck för att börja', no:'trykk for å starte', da:'tryk for at starte', fi:'napauta aloittaaksesi' },
+  ascolta:  { it:'Sto ascoltando...', en:'Listening...', de:'Ich höre zu...', fr:'J'écoute...',
+               es:'Escuchando...', nl:'Luisteren...', pl:'Słucham...', cs:'Poslouchám...',
+               sk:'Počúvam...', hu:'Hallgatlak...', ro:'Ascult...', bg:'Слушам...',
+               sl:'Poslušam...', hr:'Slušam...', sr:'Slušam...', bs:'Slušam...', sq:'Po dëgjoj...',
+               el:'Ακούω...', uk:'Слухаю...', ru:'Слушаю...', et:'Kuulan...', lv:'Klausos...',
+               lt:'Klausau...', sv:'Lyssnar...', no:'Lytter...', da:'Lytter...', fi:'Kuuntelen...' }
+};
+const t = k => (I18N[k]||{})[LANG] || (I18N[k]||{})['it'];
+
+// ── Applica traduzioni UI ───────────────────────────────────────
+document.getElementById('toccaTesto').textContent  = t('tocca');
+document.getElementById('ascoltaTesto').textContent = t('ascolta');
 
 // ── Preload video in background ─────────────────────────────────
 function preloadVideos() {
