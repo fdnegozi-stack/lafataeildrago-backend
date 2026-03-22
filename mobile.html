@@ -137,7 +137,7 @@
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;
   cursor:pointer;
 ">
-  <img id="introLogo" src="https://www.lafataeildrago.com/image/catalog/logo.fd.png" 
+  <img id="introLogo" src="stemma_trasparente.png" 
     alt="La Fata & il Drago"
     style="width:140px;height:140px;object-fit:contain;border-radius:50%;
     animation:logoPulse 2s ease-in-out infinite;
@@ -158,14 +158,14 @@
 <div class="avatar-frame" id="avatarFrame">
   <video class="vid-layer hidden" id="vidA" playsinline muted></video>
   <video class="vid-layer hidden" id="vidB" playsinline muted></video>
-  <img class="logo-fallback" id="logoFallback" src="/logo.png" alt="Tania"/>
+  <img class="logo-fallback" id="logoFallback" src="stemma_trasparente.png" alt="Tania"/>
   <div class="status-ring idle" id="statusRing"></div>
 </div>
 
 <div class="main">
   <!-- Logo in alto a sinistra -->
   <div class="logo-top">
-    <img src="/logo.png" alt="F&D"/>
+    <img src="stemma_trasparente.png" alt="F&D"/>
   </div>
 
   <div class="response-bubble fade-in fade-in-1" id="responseBubble">
@@ -317,40 +317,20 @@ function loopPool(pool) {
 function stopLoop() { loopOn = false; }
 
 // ── Sottofondo bosco ─────────────────────────────────────────────
-let actx = null;
+let forestAudio = null;
+// actx stub per compatibilità con visibilitychange
+const actx = {
+  suspend: () => { if (forestAudio) forestAudio.pause(); },
+  resume:  () => { if (forestAudio) forestAudio.play().catch(()=>{}); }
+};
 function startForest() {
-  if (actx) return;
+  if (forestAudio) return;
   try {
-    actx = new (window.AudioContext||window.webkitAudioContext)();
-    const g = actx.createGain(); g.gain.value = 0.12; g.connect(actx.destination);
-    // Vento
-    const buf = actx.createBuffer(1, actx.sampleRate*4, actx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
-    const wind = actx.createBufferSource(); wind.buffer=buf; wind.loop=true;
-    const filt = actx.createBiquadFilter(); filt.type='bandpass'; filt.frequency.value=350; filt.Q.value=0.4;
-    wind.connect(filt); filt.connect(g); wind.start();
-    // Cinguettii
-    function chirp() {
-      if (!actx) return;
-      const o = actx.createOscillator(), e = actx.createGain();
-      o.connect(e); e.connect(g);
-      const f = 2200+Math.random()*2800;
-      o.frequency.setValueAtTime(f, actx.currentTime);
-      o.frequency.exponentialRampToValueAtTime(f*1.4, actx.currentTime+0.08);
-      o.frequency.exponentialRampToValueAtTime(f*0.85, actx.currentTime+0.18);
-      e.gain.setValueAtTime(0, actx.currentTime);
-      e.gain.linearRampToValueAtTime(0.5, actx.currentTime+0.04);
-      e.gain.exponentialRampToValueAtTime(0.001, actx.currentTime+0.25);
-      o.start(actx.currentTime); o.stop(actx.currentTime+0.3);
-      setTimeout(chirp, 800+Math.random()*4000);
-    }
-    setTimeout(chirp, 300);
-    setTimeout(chirp, 1200);
-    setTimeout(chirp, 2800);
-    setTimeout(chirp, 4200);
-    setTimeout(chirp, 6500);
-  } catch(e){}
+    forestAudio = new Audio('the-voices-of-birds-in-the-forest-7715.mp3');
+    forestAudio.loop   = true;
+    forestAudio.volume = 0.18;
+    forestAudio.play().catch(() => {});
+  } catch(e) {}
 }
 
 // ── Particelle ───────────────────────────────────────────────────
