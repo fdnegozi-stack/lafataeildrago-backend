@@ -145,6 +145,7 @@
 // Listener overlay — eseguito subito, prima del resto
 (function(){
   function dismissOverlay(e) {
+    alert('dismiss chiamato!');
     if (e) e.preventDefault();
     var o = document.getElementById('startOverlay');
     if (!o || o._gone) return;
@@ -166,8 +167,10 @@
     }, 100);
   }
   document.addEventListener('DOMContentLoaded', function(){
+    alert('DOM pronto');
     var o = document.getElementById('startOverlay');
-    if (!o) return;
+    if (!o) { alert('overlay non trovato!'); return; }
+    alert('overlay trovato, aggiungo listener');
     o.addEventListener('touchend',  dismissOverlay, {passive:false});
     o.addEventListener('click',     dismissOverlay);
     o.addEventListener('touchstart',function(e){e.preventDefault();},{passive:false});
