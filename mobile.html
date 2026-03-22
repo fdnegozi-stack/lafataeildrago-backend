@@ -142,11 +142,9 @@
   cursor:pointer;
 ">
 <script>
-// Listener overlay — eseguito subito, prima del resto
 (function(){
   function dismissOverlay(e) {
-    alert('dismiss chiamato!');
-    if (e) e.preventDefault();
+    if (e && e.cancelable) e.preventDefault();
     var o = document.getElementById('startOverlay');
     if (!o || o._gone) return;
     o._gone = true;
@@ -154,8 +152,6 @@
     o.style.opacity = '0';
     o.style.pointerEvents = 'none';
     setTimeout(function(){ if(o.parentNode) o.parentNode.removeChild(o); }, 1200);
-    // Audio e video avviati dopo — window.startForest e window.POOL potrebbero non esistere ancora
-    // li chiamiamo con un piccolo delay
     setTimeout(function(){
       if (window.startForest) window.startForest();
       if (window.POOL && window.crossfadeTo && window.loopPool) {
@@ -166,15 +162,14 @@
       }
     }, 100);
   }
-  document.addEventListener('DOMContentLoaded', function(){
-    alert('DOM pronto');
+  // Attacca subito — senza aspettare DOMContentLoaded
+  function attach() {
     var o = document.getElementById('startOverlay');
-    if (!o) { alert('overlay non trovato!'); return; }
-    alert('overlay trovato, aggiungo listener');
-    o.addEventListener('touchend',  dismissOverlay, {passive:false});
-    o.addEventListener('click',     dismissOverlay);
-    o.addEventListener('touchstart',function(e){e.preventDefault();},{passive:false});
-  });
+    if (!o) { setTimeout(attach, 50); return; }
+    o.addEventListener('touchstart', dismissOverlay, {passive:false});
+    o.addEventListener('click', dismissOverlay);
+  }
+  attach();
 })();
 </script>
   <img id="introLogo" src="https://fdnegozi-stack.github.io/lafataeildrago-backend/stemma%20trasparente.png" 
