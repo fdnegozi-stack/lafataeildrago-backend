@@ -110,10 +110,47 @@
     padding: 8px 26px; border: 1px solid rgba(212,175,55,0.4); border-radius: 20px;
     background: transparent; color: #8a6818; font-size: 0.82rem; cursor: pointer;
   }
+
+  @keyframes logoPulse {
+    0%,100% { transform: scale(1); box-shadow: 0 0 30px rgba(212,175,55,0.5); }
+    50% { transform: scale(1.08); box-shadow: 0 0 60px rgba(212,175,55,0.9); }
+  }
+  @keyframes tapBounce {
+    0%,100% { transform: translateY(0); opacity:1; }
+    50% { transform: translateY(-8px); opacity:0.7; }
+  }
+  @keyframes fadeInUp {
+    from { opacity:0; transform:translateY(20px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  .fade-in { animation: fadeInUp 0.8s ease forwards; opacity:0; }
+  .fade-in-1 { animation-delay: 0.2s; }
+  .fade-in-2 { animation-delay: 0.6s; }
+  .fade-in-3 { animation-delay: 1.0s; }
 </style>
 </head>
 <body>
-<div id="startOverlay" style="position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.01);cursor:pointer;" onclick="rimuoviOverlay()"></div>
+<!-- Schermata intro -->
+<div id="startOverlay" onclick="rimuoviOverlay()" style="
+  position:fixed;inset:0;z-index:999;
+  background:#000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;
+  cursor:pointer;
+">
+  <img id="introLogo" src="https://www.lafataeildrago.com/image/catalog/logo.fd.png" 
+    alt="La Fata & il Drago"
+    style="width:140px;height:140px;object-fit:contain;border-radius:50%;
+    animation:logoPulse 2s ease-in-out infinite;
+    box-shadow:0 0 40px rgba(212,175,55,0.6);"
+  />
+  <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+    <p style="color:#d4af37;font-family:Georgia,serif;font-size:1.4rem;letter-spacing:0.2em;text-shadow:0 0 20px rgba(212,175,55,0.8);">✦ la Fata &amp; il Drago ✦</p>
+    <div style="display:flex;align-items:center;gap:10px;animation:tapBounce 1.5s ease-in-out infinite;">
+      <span style="font-size:1.8rem;">👆</span>
+      <span style="color:#a07830;font-family:Georgia,serif;font-size:0.9rem;letter-spacing:0.15em;">tocca per iniziare</span>
+    </div>
+  </div>
+</div>
 <div class="particles" id="particles"></div>
 <input type="file" id="cameraInput" accept="image/*" capture="environment">
 
@@ -131,14 +168,14 @@
     <img src="/logo.png" alt="F&D"/>
   </div>
 
-  <div class="response-bubble" id="responseBubble">
+  <div class="response-bubble fade-in fade-in-1" id="responseBubble">
 
   </div>
   <div class="photo-preview" id="photoPreview">
     <img id="photoImg" src="" alt="foto prodotto"/>
     <div class="photo-result" id="photoResult"></div>
   </div>
-  <div class="action-buttons">
+  <div class="action-buttons fade-in fade-in-2">
     <div class="action-btn" onclick="openCamera()">
       <div class="btn-circle" id="cameraBtn">📷</div>
       <span class="btn-label">Fotografa</span>
@@ -148,7 +185,7 @@
       <span class="btn-label">Chiedi</span>
     </div>
   </div>
-  <p class="titolo-basso">✦ la Fata &amp; il Drago ✦</p>
+  <p class="titolo-basso fade-in fade-in-3">✦ la Fata &amp; il Drago ✦</p>
 </div>
 
 <div class="listening-overlay" id="listeningOverlay">
@@ -164,8 +201,18 @@
 // ── Config ──────────────────────────────────────────────────────
 function rimuoviOverlay() {
   const o = document.getElementById('startOverlay');
-  if (o) o.remove();
+  if (o) {
+    o.style.transition = 'opacity 1s ease';
+    o.style.opacity = '0';
+    o.style.pointerEvents = 'none';
+    setTimeout(() => o.remove(), 1000);
+  }
   startForest();
+  // Avvia il video dopo il primo tocco
+  const t = document.createElement('video');
+  t.src = POOL.entrata[0];
+  t.oncanplay = () => crossfadeTo(POOL.entrata[0], false, ()=>loopPool(POOL.breve));
+  t.onerror   = () => loopPool(POOL.breve);
 }
 
 // Sospendi/riprendi audio quando app va in background
