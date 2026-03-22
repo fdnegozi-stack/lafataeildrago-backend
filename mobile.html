@@ -135,7 +135,7 @@
 </head>
 <body>
 <!-- Schermata intro -->
-<div id="startOverlay" onclick="rimuoviOverlay()" style="
+<div id="startOverlay" onclick="rimuoviOverlay()" ontouchstart="rimuoviOverlay()" style="
   position:fixed;inset:0;z-index:999;
   background:#000;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;
@@ -145,7 +145,8 @@
     alt="La Fata & il Drago"
     style="width:140px;height:140px;object-fit:contain;border-radius:50%;
     animation:logoPulse 2s ease-in-out infinite;
-    box-shadow:0 0 40px rgba(212,175,55,0.6);"
+    box-shadow:0 0 40px rgba(212,175,55,0.6);
+    pointer-events:none;"
   />
   <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
     <p style="color:#d4af37;font-family:Georgia,serif;font-size:1.4rem;letter-spacing:0.2em;text-shadow:0 0 20px rgba(212,175,55,0.8);">✦ la Fata &amp; il Drago ✦</p>
