@@ -149,22 +149,15 @@
     setTimeout(function(){ if(o.parentNode) o.parentNode.removeChild(o); }, 1200);
     setTimeout(function(){
       if (window.startForest) window.startForest();
+      alert('POOL esiste: ' + !!window.POOL + ' crossfadeTo: ' + !!window.crossfadeTo + ' loopPool: ' + !!window.loopPool);
       if (window.POOL && window.crossfadeTo && window.loopPool) {
+        alert('src video: ' + window.POOL.entrata[0]);
         var tv = document.createElement('video');
         tv.src = window.POOL.entrata[0];
-        // timeout di sicurezza: se entrata.mp4 non arriva in 4s, vai diretto al loop breve
-        tv.oncanplay = function(){
-          window.crossfadeTo(window.POOL.entrata[0], false, function(){ window.loopPool(window.POOL.breve); });
-        };
-        tv.onerror = function(){
-          // tunnel non disponibile — sfondo scuro, riprova ogni 8s
-          setTimeout(function(){ if(window.POOL) window.loopPool(window.POOL.breve); }, 8000);
-        };
+        tv.oncanplay = function(){ alert('video pronto!'); window.crossfadeTo(window.POOL.entrata[0], false, function(){ window.loopPool(window.POOL.breve); }); };
+        tv.onerror = function(){ alert('errore video: ' + tv.src); };
         tv.load();
-        // Se dopo 5s non è ancora pronto, proviamo direttamente il loop breve
-        setTimeout(function(){
-          if(!window._videoStarted) window.loopPool(window.POOL.breve);
-        }, 5000);
+        setTimeout(function(){ alert('5s passati, _videoStarted: ' + !!window._videoStarted); if(!window._videoStarted) window.loopPool(window.POOL.breve); }, 5000);
       }
     }, 100);
   }
@@ -268,7 +261,7 @@ const I18N = {
                el:'αγγίξτε για να ξεκινήσετε', uk:'торкніться, щоб почати', ru:'нажмите для начала',
                et:'puudutage alustamiseks', lv:'pieskarieties, lai sāktu', lt:'palieskite, norėdami pradėti',
                sv:'tryck för att börja', no:'trykk for å starte', da:'tryk for at starte', fi:'napauta aloittaaksesi' },
-  ascolta:  { it:'Sto ascoltando...', en:'Listening...', de:'Ich höre zu...', fr:'J'écoute...',
+  ascolta:  { it:'Sto ascoltando...', en:'Listening...', de:'Ich höre zu...', fr:"J'écoute...",
                es:'Escuchando...', nl:'Luisteren...', pl:'Słucham...', cs:'Poslouchám...',
                sk:'Počúvam...', hu:'Hallgatlak...', ro:'Ascult...', bg:'Слушам...',
                sl:'Poslušam...', hr:'Slušam...', sr:'Slušam...', bs:'Slušam...', sq:'Po dëgjoj...',
