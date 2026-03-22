@@ -463,7 +463,8 @@ function startListening() {
     overlay.classList.remove('show'); micBtn.classList.remove('active');
     if (!testo||testo.length<2) { showText('Non ho capito. Riprova.'); isBusy=false; setStatus('idle'); return; }
 
-    setStatus('think'); loopPool(POOL.lunga);
+    setStatus('think');
+    if (!loopOn) loopPool(POOL.lunga); // mantieni video attivo
 
     const off = offesa(testo);
     if (off) {
