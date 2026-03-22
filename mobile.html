@@ -135,12 +135,45 @@
 </head>
 <body>
 <!-- Schermata intro -->
-<div id="startOverlay" onclick="rimuoviOverlay(event)" style="
+<div id="startOverlay" style="
   position:fixed;inset:0;z-index:999;
   background:#000;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;
   cursor:pointer;
 ">
+<script>
+// Listener overlay — eseguito subito, prima del resto
+(function(){
+  function dismissOverlay(e) {
+    if (e) e.preventDefault();
+    var o = document.getElementById('startOverlay');
+    if (!o || o._gone) return;
+    o._gone = true;
+    o.style.transition = 'opacity 1.2s ease';
+    o.style.opacity = '0';
+    o.style.pointerEvents = 'none';
+    setTimeout(function(){ if(o.parentNode) o.parentNode.removeChild(o); }, 1200);
+    // Audio e video avviati dopo — window.startForest e window.POOL potrebbero non esistere ancora
+    // li chiamiamo con un piccolo delay
+    setTimeout(function(){
+      if (window.startForest) window.startForest();
+      if (window.POOL && window.crossfadeTo && window.loopPool) {
+        var tv = document.createElement('video');
+        tv.src = window.POOL.entrata[0];
+        tv.oncanplay = function(){ window.crossfadeTo(window.POOL.entrata[0], false, function(){ window.loopPool(window.POOL.breve); }); };
+        tv.onerror   = function(){ window.loopPool(window.POOL.breve); };
+      }
+    }, 100);
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    var o = document.getElementById('startOverlay');
+    if (!o) return;
+    o.addEventListener('touchend',  dismissOverlay, {passive:false});
+    o.addEventListener('click',     dismissOverlay);
+    o.addEventListener('touchstart',function(e){e.preventDefault();},{passive:false});
+  });
+})();
+</script>
   <img id="introLogo" src="https://fdnegozi-stack.github.io/lafataeildrago-backend/stemma%20trasparente.png" 
     alt="La Fata & il Drago"
     style="width:140px;height:140px;object-fit:contain;border-radius:50%;
@@ -283,22 +316,7 @@ const POOL = {
 };
 const rand = arr => arr[Math.floor(Math.random()*arr.length)];
 
-function rimuoviOverlay(e) {
-  if (e) e.preventDefault();
-  const o = document.getElementById('startOverlay');
-  if (!o || o._removing) return;
-  o._removing = true;
-  o.style.transition = 'opacity 1s ease';
-  o.style.opacity = '0';
-  o.style.pointerEvents = 'none';
-  setTimeout(() => o.remove(), 1000);
-  startForest();
-  // Avvia il video dopo il primo tocco
-  const tv = document.createElement('video');
-  tv.src = POOL.entrata[0];
-  tv.oncanplay = () => crossfadeTo(POOL.entrata[0], false, ()=>loopPool(POOL.breve));
-  tv.onerror   = () => loopPool(POOL.breve);
-}
+// rimuoviOverlay gestita inline nell'overlay
 
 // ── Player crossfade ─────────────────────────────────────────────
 const vidA = document.getElementById('vidA');
@@ -307,7 +325,7 @@ const logo = document.getElementById('logoFallback');
 let activeSlot = null; // 'A' o 'B'
 let loopOn = false;
 
-function crossfadeTo(src, loop=true, onEnded=null) {
+window.crossfadeTo = function crossfadeTo(src, loop=true, onEnded=null) {
   const next = activeSlot==='A' ? vidB : vidA;
   const prev = activeSlot==='A' ? vidA  : vidB;
   next.src = src; next.loop = loop; next.muted = true; next.load();
@@ -324,7 +342,7 @@ function crossfadeTo(src, loop=true, onEnded=null) {
   };
 }
 
-function loopPool(pool) {
+window.loopPool = function loopPool(pool) {
   loopOn = true;
   function playNext() {
     if (!loopOn) return;
@@ -345,7 +363,7 @@ function loopPool(pool) {
   }
   playNext();
 }
-function stopLoop() { loopOn = false; }
+window.stopLoop = function stopLoop() { loopOn = false; }
 
 // ── Sottofondo bosco ─────────────────────────────────────────────
 let forestAudio = null;
@@ -354,7 +372,7 @@ const actx = {
   suspend: () => { if (forestAudio) forestAudio.pause(); },
   resume:  () => { if (forestAudio) forestAudio.play().catch(()=>{}); }
 };
-function startForest() {
+window.startForest = function startForest() {
   if (forestAudio) return;
   try {
     forestAudio = new Audio('the-voices-of-birds-in-the-forest-7715.mp3');
@@ -564,11 +582,7 @@ function cancelListening() {
   overlay.classList.remove('show'); micBtn.classList.remove('active');
   setStatus('idle'); isBusy=false; loopPool(POOL.breve);
 }
-  // Touch listener overlay
-  (function() {
-    var o = document.getElementById('startOverlay');
-    if (o) o.addEventListener('touchend', rimuoviOverlay, { passive: false });
-  })();
+
 </script>
 </body>
 </html>
