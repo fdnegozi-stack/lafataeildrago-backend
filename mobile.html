@@ -29,9 +29,19 @@
     pointer-events: none;
   }
   .main > * { pointer-events: auto; }
-  .header { text-align: center; position: fixed; top: 16px; left: 0; right: 0; z-index: 20; }
-  .header h1 { font-size: 1.2rem; letter-spacing: 0.18em; color: #d4af37; text-shadow: 0 0 15px rgba(212,175,55,0.8); }
-  .header .tagline { font-size: 0.65rem; color: #c8a030; letter-spacing: 0.25em; text-transform: uppercase; margin-top: 2px; }
+  .logo-top {
+    position: fixed; top: 14px; left: 16px; z-index: 20;
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 1px solid rgba(212,175,55,0.5);
+    box-shadow: 0 0 12px rgba(212,175,55,0.3);
+    overflow: hidden; background: rgba(0,0,0,0.4);
+  }
+  .logo-top img { width: 100%; height: 100%; object-fit: cover; }
+  .titolo-basso {
+    font-size: 1.1rem; letter-spacing: 0.18em; color: #d4af37;
+    text-shadow: 0 0 15px rgba(212,175,55,0.8);
+    font-family: 'Georgia', serif;
+  }
   .avatar-area { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; }
   .avatar-frame {
     position: fixed; inset: 0; z-index: 0;
@@ -66,7 +76,9 @@
     color: #f0e0b0; text-align: center; width: 100%; max-width: 420px; min-height: 54px;
     display: flex; align-items: center; justify-content: center; transition: opacity 0.4s;
     backdrop-filter: blur(4px); text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    opacity: 0; pointer-events: none;
   }
+  .response-bubble.visible { opacity: 1; pointer-events: auto; }
   .action-buttons { display: flex; gap: 24px; align-items: flex-end; justify-content: center; }
   .action-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
   .action-btn .btn-circle {
@@ -113,13 +125,13 @@
 </div>
 
 <div class="main">
-  <div class="header">
-    <h1>✦ la Fata &amp; il Drago ✦</h1>
-    <p class="tagline">Bibione · Negozio Fantasy</p>
+  <!-- Logo in alto a sinistra -->
+  <div class="logo-top">
+    <img src="/logo.png" alt="F&D"/>
   </div>
 
   <div class="response-bubble" id="responseBubble">
-    Benvenuto! Sono Tania. Fotografa un prodotto o fai una domanda — ti aiuto a scoprire la magia del negozio! ✨
+
   </div>
   <div class="photo-preview" id="photoPreview">
     <img id="photoImg" src="" alt="foto prodotto"/>
@@ -135,6 +147,7 @@
       <span class="btn-label">Chiedi</span>
     </div>
   </div>
+  <p class="titolo-basso">✦ la Fata &amp; il Drago ✦</p>
 </div>
 
 <div class="listening-overlay" id="listeningOverlay">
@@ -148,10 +161,34 @@
 
 <script>
 // ── Config ──────────────────────────────────────────────────────
-const SERVER = 'https://request-matched-jewish-arrange.trycloudflare.com';
+const SERVER = 'https://common-gore-productive-streets.trycloudflare.com';
 const LINGUE_SUPPORTATE = ['it','en','de','fr','es','nl','pl','cs','sk','hu','ro','bg','sl','hr','sr','bs','sq','el','uk','ru','et','lv','lt','sv','no','da','fi'];
 const _langRaw = (navigator.language || 'it').split('-')[0].toLowerCase();
 const LANG = LINGUE_SUPPORTATE.includes(_langRaw) ? _langRaw : 'it';
+
+// ── Preload video in background ─────────────────────────────────
+function preloadVideos() {
+  const tuttiIVideo = [
+    'attesa breve 1.mp4','attesa breve 2.mp4','attesa breve 3.mp4',
+    'attesa breve 4.mp4','attesa breve 5.mp4',
+    'in attesa lunga 1.mp4','in attesa lunga 2.mp4',
+    'entrata.mp4','parlato normale 1.mp4','parlato normale 2.mp4',
+    'parlato con enfasi.mp4'
+  ];
+  // Precarica in sequenza con bassa priorità
+  let i = 0;
+  function preloadNext() {
+    if (i >= tuttiIVideo.length) return;
+    const v = document.createElement('video');
+    v.preload = 'auto';
+    v.muted = true;
+    v.src = SERVER + '/video/' + tuttiIVideo[i];
+    v.load();
+    v.oncanplaythrough = () => { i++; setTimeout(preloadNext, 200); };
+    v.onerror = () => { i++; setTimeout(preloadNext, 200); };
+  }
+  preloadNext();
+}
 
 // ── Video pool ───────────────────────────────────────────────────
 // SERVER è già definito sopra — i video vengono serviti dal tunnel
@@ -270,7 +307,11 @@ const prevImg= document.getElementById('photoImg');
 const prevRes= document.getElementById('photoResult');
 
 const setStatus = s => ring.className = 'status-ring '+s;
-const showText  = t => bubble.textContent = t;
+const showText  = t => {
+  bubble.textContent = t;
+  if (t) bubble.classList.add('visible');
+  else bubble.classList.remove('visible');
+};
 
 // ── Rilevamento offese ───────────────────────────────────────────
 const RE_GRAVE = /cazzo|vaffanculo|troia|puttana|bastard|merda.*tua|fuck.*you|scheiss|merde|joder|kurwa/i;
@@ -333,6 +374,9 @@ async function speak(testo, tipo='normale') {
 
 // ── Avvio ────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
+  // Avvia preload video in background
+  setTimeout(preloadVideos, 500);
+
   document.addEventListener('click', startForest, { once:true });
   const t = document.createElement('video');
   t.src = POOL.entrata[0];
