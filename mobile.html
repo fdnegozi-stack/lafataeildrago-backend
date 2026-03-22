@@ -206,6 +206,7 @@
 // ── Config ──────────────────────────────────────────────────────
 function rimuoviOverlay(e) {
   if (e) e.preventDefault();
+  alert('tocco rilevato');
   const o = document.getElementById('startOverlay');
   if (!o || o._removing) return;
   o._removing = true;
