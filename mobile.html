@@ -56,7 +56,7 @@
   .vid-layer.visible { opacity: 1; }
   .logo-fallback {
     position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: cover; transition: opacity 0.4s;
+    object-fit: contain; transition: opacity 0.4s;
   }
   .logo-fallback.hidden { opacity: 0; }
   .status-ring {
@@ -157,8 +157,16 @@
       if (window.POOL && window.crossfadeTo && window.loopPool) {
         var tv = document.createElement('video');
         tv.src = window.POOL.entrata[0];
-        tv.oncanplay = function(){ window.crossfadeTo(window.POOL.entrata[0], false, function(){ window.loopPool(window.POOL.breve); }); };
-        tv.onerror   = function(){ window.loopPool(window.POOL.breve); };
+        // timeout di sicurezza: se entrata.mp4 non arriva in 4s, vai diretto al loop breve
+        var fallbackTimer = setTimeout(function(){ window.loopPool(window.POOL.breve); }, 4000);
+        tv.oncanplay = function(){
+          clearTimeout(fallbackTimer);
+          window.crossfadeTo(window.POOL.entrata[0], false, function(){ window.loopPool(window.POOL.breve); });
+        };
+        tv.onerror = function(){
+          clearTimeout(fallbackTimer);
+          window.loopPool(window.POOL.breve);
+        };
       }
     }, 100);
   }
