@@ -301,6 +301,15 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ── Avvio al tocco ────────────────────────────────────────────────
+// Legge URL tunnel aggiornato da GitHub Pages
+async function caricaTunnelUrl() {
+  try {
+    const r = await fetch('tunnel-url.json?t=' + Date.now());
+    const d = await r.json();
+    if (d.url) { SERVER = d.url; console.log('✓ Tunnel URL:', SERVER); }
+  } catch(e) { console.log('Uso URL fallback:', SERVER); }
+}
+
 async function avvia() {
   const o = document.getElementById('startOverlay');
   if (o) { o.style.opacity='0'; o.style.pointerEvents='none'; setTimeout(()=>o.remove(),1000); }
