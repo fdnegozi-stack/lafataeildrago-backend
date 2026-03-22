@@ -21,17 +21,22 @@
     0%{transform:translateY(100vh);opacity:0} 10%{opacity:0.5} 90%{opacity:0.2} 100%{transform:translateY(-5vh);opacity:0}
   }
   .main {
-    position: relative; z-index: 1; display: flex; flex-direction: column;
-    align-items: center; padding: 24px 16px 30px; gap: 18px; min-height: 100vh;
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end;
+    padding: 24px 16px 40px; gap: 14px;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 40%, transparent 70%);
+    pointer-events: none;
   }
-  .header { text-align: center; }
-  .header h1 { font-size: 1.5rem; letter-spacing: 0.18em; color: #d4af37; text-shadow: 0 0 15px rgba(212,175,55,0.5); }
-  .header .tagline { font-size: 0.72rem; color: #8a6818; letter-spacing: 0.25em; text-transform: uppercase; margin-top: 4px; }
+  .main > * { pointer-events: auto; }
+  .header { text-align: center; position: fixed; top: 16px; left: 0; right: 0; z-index: 20; }
+  .header h1 { font-size: 1.2rem; letter-spacing: 0.18em; color: #d4af37; text-shadow: 0 0 15px rgba(212,175,55,0.8); }
+  .header .tagline { font-size: 0.65rem; color: #c8a030; letter-spacing: 0.25em; text-transform: uppercase; margin-top: 2px; }
   .avatar-area { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; }
   .avatar-frame {
-    position: relative; border: 2px solid #d4af37; border-radius: 14px; overflow: hidden;
-    box-shadow: 0 0 30px rgba(212,175,55,0.25); width: 100%; max-width: 320px;
-    aspect-ratio: 9/16; max-height: 40vh; background: #0a0800;
+    position: fixed; inset: 0; z-index: 0;
+    width: 100vw; height: 100vh;
+    background: #0a0800; overflow: hidden;
   }
   .vid-layer {
     position: absolute; inset: 0; width: 100%; height: 100%;
@@ -41,7 +46,7 @@
   .vid-layer.visible { opacity: 1; }
   .logo-fallback {
     position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: contain; padding: 16px; transition: opacity 0.4s;
+    object-fit: cover; transition: opacity 0.4s;
   }
   .logo-fallback.hidden { opacity: 0; }
   .status-ring {
@@ -54,12 +59,13 @@
   .status-ring.think  { background:#ce93d8; box-shadow:0 0 6px #ce93d8; }
   .status-ring.speak  { background:#a5d6a7; box-shadow:0 0 6px #a5d6a7; animation:pulse 0.3s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  .tania-name { font-size: 1.1rem; letter-spacing: 0.15em; color: #d4af37; text-shadow: 0 0 8px rgba(212,175,55,0.4); }
+  .tania-name { display: none; }
   .response-bubble {
-    background: rgba(26,20,0,0.9); border: 1px solid rgba(212,175,55,0.35);
-    border-radius: 12px; padding: 12px 16px; font-size: 0.9rem; line-height: 1.6;
-    color: #e8d5a0; text-align: center; width: 100%; max-width: 400px; min-height: 54px;
+    background: rgba(10,8,0,0.75); border: 1px solid rgba(212,175,55,0.4);
+    border-radius: 12px; padding: 12px 16px; font-size: 0.95rem; line-height: 1.6;
+    color: #f0e0b0; text-align: center; width: 100%; max-width: 420px; min-height: 54px;
     display: flex; align-items: center; justify-content: center; transition: opacity 0.4s;
+    backdrop-filter: blur(4px); text-shadow: 0 1px 3px rgba(0,0,0,0.8);
   }
   .action-buttons { display: flex; gap: 24px; align-items: flex-end; justify-content: center; }
   .action-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
@@ -98,20 +104,20 @@
 <div class="particles" id="particles"></div>
 <input type="file" id="cameraInput" accept="image/*" capture="environment">
 
+<!-- Video fullscreen background -->
+<div class="avatar-frame" id="avatarFrame">
+  <video class="vid-layer hidden" id="vidA" playsinline muted></video>
+  <video class="vid-layer hidden" id="vidB" playsinline muted></video>
+  <img class="logo-fallback" id="logoFallback" src="/logo.png" alt="Tania"/>
+  <div class="status-ring idle" id="statusRing"></div>
+</div>
+
 <div class="main">
   <div class="header">
     <h1>✦ la Fata &amp; il Drago ✦</h1>
     <p class="tagline">Bibione · Negozio Fantasy</p>
   </div>
-  <div class="avatar-area">
-    <div class="avatar-frame" id="avatarFrame">
-      <video class="vid-layer hidden" id="vidA" playsinline muted></video>
-      <video class="vid-layer hidden" id="vidB" playsinline muted></video>
-      <img class="logo-fallback" id="logoFallback" src="/logo.png" alt="Tania"/>
-      <div class="status-ring idle" id="statusRing"></div>
-    </div>
-    <p class="tania-name">✦ Tania ✦</p>
-  </div>
+
   <div class="response-bubble" id="responseBubble">
     Benvenuto! Sono Tania. Fotografa un prodotto o fai una domanda — ti aiuto a scoprire la magia del negozio! ✨
   </div>
@@ -142,7 +148,7 @@
 
 <script>
 // ── Config ──────────────────────────────────────────────────────
-const SERVER = 'https://shots-editions-alot-sheets.trycloudflare.com';
+const SERVER = 'https://common-gore-productive-streets.trycloudflare.com';
 const LINGUE_SUPPORTATE = ['it','en','de','fr','es','nl','pl','cs','sk','hu','ro','bg','sl','hr','sr','bs','sq','el','uk','ru','et','lv','lt','sv','no','da','fi'];
 const _langRaw = (navigator.language || 'it').split('-')[0].toLowerCase();
 const LANG = LINGUE_SUPPORTATE.includes(_langRaw) ? _langRaw : 'it';
