@@ -293,7 +293,7 @@ let forestAudio = null;
 function startForest() {
   if (forestAudio) return;
   try {
-    forestAudio = new Audio('https://fdnegozi-stack.github.io/lafataeildrago-backend/forest.mp3');
+    forestAudio = new Audio(SERVER + '/totem/forest.mp3');
     forestAudio.loop = true;
     forestAudio.volume = 0.25;
     forestAudio.play().then(()=>console.log('✓ Foresta avviata')).catch(e=>console.error('✗ Foresta errore:', e));
