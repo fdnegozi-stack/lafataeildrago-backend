@@ -4,97 +4,136 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0a0800">
+<meta name="theme-color" content="#000000">
 <title>La Fata & il Drago</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: radial-gradient(ellipse at center, #1a1200 0%, #0a0800 60%, #000 100%);
-    min-height: 100vh; font-family: 'Georgia', serif; color: #d4af37; overflow-x: hidden;
-  }
-  .particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
-  .particle {
-    position: absolute; width: 2px; height: 2px; background: #d4af37;
-    border-radius: 50%; opacity: 0; animation: floatUp linear infinite;
-  }
-  @keyframes floatUp {
-    0%{transform:translateY(100vh);opacity:0} 10%{opacity:0.5} 90%{opacity:0.2} 100%{transform:translateY(-5vh);opacity:0}
-  }
-  .main {
-    position: fixed; inset: 0; z-index: 10;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: flex-end;
-    padding: 24px 16px 40px; gap: 14px;
-    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 40%, transparent 70%);
-    pointer-events: none;
-  }
-  .main > * { pointer-events: auto; }
-  .logo-top {
-    position: fixed; top: 14px; left: 16px; z-index: 20;
-    width: 52px; height: 52px;
-  }
-  .logo-top img { width: 100%; height: 100%; object-fit: contain; }
-  .titolo-basso {
-    font-size: 1.1rem; letter-spacing: 0.18em; color: #d4af37;
-    text-shadow: 0 0 15px rgba(212,175,55,0.8);
-    font-family: 'Georgia', serif;
-  }
-  .avatar-area { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-  .avatar-frame {
+  body { background: #000; min-height: 100vh; font-family: 'Georgia', serif; color: #d4af37; overflow: hidden; }
+
+  /* ── Video fullscreen background ── */
+  #avatarFrame {
     position: fixed; inset: 0; z-index: 0;
-    width: 100vw; height: 100vh;
-    background: #0a0800; overflow: hidden;
+    width: 100vw; height: 100vh; background: #000; overflow: hidden;
   }
   .vid-layer {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: cover; transition: opacity 0.4s ease-in-out;
   }
-  .vid-layer.hidden { opacity: 0; }
+  .vid-layer.hidden  { opacity: 0; }
   .vid-layer.visible { opacity: 1; }
-  .logo-fallback {
-    display: none;
+  #logoFallback {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; transition: opacity 0.4s;
   }
-  .status-ring {
-    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
-    width: 12px; height: 12px; border-radius: 50%; background: #2a2a2a;
-    border: 2px solid #444; transition: all 0.3s; z-index: 10;
+  #logoFallback.hidden { opacity: 0; }
+
+  /* ── Overlay intro ── */
+  #startOverlay {
+    position: fixed; inset: 0; z-index: 999;
+    background: #000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px;
+    cursor: pointer; transition: opacity 1s ease;
   }
-  .status-ring.idle   { background:#d4af37; box-shadow:0 0 6px #d4af37; animation:pulse 2s infinite; }
-  .status-ring.listen { background:#4fc3f7; box-shadow:0 0 6px #4fc3f7; animation:pulse 0.5s infinite; }
-  .status-ring.think  { background:#ce93d8; box-shadow:0 0 6px #ce93d8; }
-  .status-ring.speak  { background:#a5d6a7; box-shadow:0 0 6px #a5d6a7; animation:pulse 0.3s infinite; }
+  #introLogo {
+    width: 150px; height: 150px; object-fit: contain; border-radius: 50%;
+    animation: logoPulse 2s ease-in-out infinite;
+    box-shadow: 0 0 40px rgba(212,175,55,0.6);
+  }
+  .intro-text {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+  }
+  .intro-title {
+    color: #d4af37; font-size: 1.4rem; letter-spacing: 0.2em;
+    text-shadow: 0 0 20px rgba(212,175,55,0.8);
+  }
+  .intro-tap {
+    display: flex; align-items: center; gap: 10px;
+    animation: tapBounce 1.5s ease-in-out infinite;
+  }
+  .intro-tap span { color: #a07830; font-size: 0.9rem; letter-spacing: 0.15em; }
+
+  @keyframes logoPulse {
+    0%,100% { transform: scale(1); box-shadow: 0 0 30px rgba(212,175,55,0.5); }
+    50% { transform: scale(1.08); box-shadow: 0 0 60px rgba(212,175,55,0.9); }
+  }
+  @keyframes tapBounce {
+    0%,100% { transform: translateY(0); opacity: 1; }
+    50% { transform: translateY(-8px); opacity: 0.7; }
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── UI overlay ── */
+  #ui {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    padding: 24px 16px 36px; gap: 14px;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 45%, transparent 70%);
+    pointer-events: none; opacity: 0;
+  }
+  #ui.show { opacity: 1; transition: opacity 1s ease; pointer-events: auto; }
+
+  /* Logo in alto */
+  #logoTop {
+    position: fixed; top: 14px; left: 16px; z-index: 20;
+    width: 54px; height: 54px; border-radius: 50%;
+    border: 1px solid rgba(212,175,55,0.5);
+    box-shadow: 0 0 12px rgba(212,175,55,0.3);
+    overflow: hidden; background: rgba(0,0,0,0.3);
+    opacity: 0; transition: opacity 1s ease;
+  }
+  #logoTop.show { opacity: 1; }
+  #logoTop img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* Status ring */
+  #statusRing {
+    position: fixed; bottom: 220px; left: 50%; transform: translateX(-50%);
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #2a2a2a; border: 2px solid #444; transition: all 0.3s; z-index: 11;
+    opacity: 0; transition: opacity 1s ease;
+  }
+  #statusRing.show { opacity: 1; }
+  #statusRing.idle   { background: #d4af37; box-shadow: 0 0 6px #d4af37; animation: pulse 2s infinite; }
+  #statusRing.listen { background: #4fc3f7; box-shadow: 0 0 6px #4fc3f7; animation: pulse 0.5s infinite; }
+  #statusRing.think  { background: #ce93d8; box-shadow: 0 0 6px #ce93d8; }
+  #statusRing.speak  { background: #a5d6a7; box-shadow: 0 0 6px #a5d6a7; animation: pulse 0.3s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  .tania-name { display: none; }
-  .response-bubble {
-    background: rgba(10,8,0,0.75); border: 1px solid rgba(212,175,55,0.4);
+
+  /* Bolla risposta */
+  #responseBubble {
+    background: rgba(10,8,0,0.78); border: 1px solid rgba(212,175,55,0.4);
     border-radius: 12px; padding: 12px 16px; font-size: 0.95rem; line-height: 1.6;
-    color: #f0e0b0; text-align: center; width: 100%; max-width: 420px;
-    display: none; align-items: center; justify-content: center; transition: opacity 0.4s;
+    color: #f0e0b0; text-align: center; width: 100%; max-width: 420px; min-height: 54px;
+    display: flex; align-items: center; justify-content: center;
     backdrop-filter: blur(4px); text-shadow: 0 1px 3px rgba(0,0,0,0.8);
-    opacity: 0; pointer-events: none;
+    opacity: 0; transition: opacity 0.4s; pointer-events: none;
   }
-  .response-bubble.visible { display: flex; opacity: 1; pointer-events: auto; }
+  #responseBubble.visible { opacity: 1; pointer-events: auto; }
+
+  /* Pulsanti */
   .action-buttons { display: flex; gap: 24px; align-items: flex-end; justify-content: center; }
   .action-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
-  .action-btn .btn-circle {
-    width: 64px; height: 64px; border-radius: 50%; border: 2px solid #d4af37;
-    background: rgba(26,20,0,0.8); color: #d4af37; font-size: 1.6rem;
+  .btn-circle {
+    width: 64px; height: 64px; border-radius: 50%;
+    border: 2px solid #d4af37; background: rgba(10,8,0,0.7);
+    color: #d4af37; font-size: 1.6rem;
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 0 16px rgba(212,175,55,0.2); transition: all 0.2s;
   }
-  .action-btn .btn-circle:hover  { box-shadow: 0 0 24px rgba(212,175,55,0.5); transform: scale(1.05); }
-  .action-btn .btn-circle.active { background: rgba(79,195,247,0.2); border-color: #4fc3f7; color: #4fc3f7; }
-  .action-btn .btn-label { font-size: 0.68rem; color: #8a6818; letter-spacing: 0.12em; text-transform: uppercase; }
-  .photo-preview { display: none; width: 100%; max-width: 320px; border: 1px solid rgba(212,175,55,0.3); border-radius: 10px; overflow: hidden; }
-  .photo-preview.show { display: block; }
-  .photo-preview img { width: 100%; display: block; }
-  .photo-result { padding: 10px 14px; background: rgba(26,20,0,0.9); font-size: 0.82rem; color: #c8b060; line-height: 1.5; text-align: center; }
-  #cameraInput { display: none; }
-  .listening-overlay {
+  .btn-circle.active { background: rgba(79,195,247,0.2); border-color: #4fc3f7; color: #4fc3f7; }
+  .btn-label { font-size: 0.68rem; color: #8a6818; letter-spacing: 0.12em; text-transform: uppercase; }
+
+  /* Titolo sotto */
+  .titolo-basso { font-size: 1rem; letter-spacing: 0.18em; color: #d4af37; text-shadow: 0 0 12px rgba(212,175,55,0.7); }
+
+  /* Overlay ascolto */
+  #listeningOverlay {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100;
     flex-direction: column; align-items: center; justify-content: center; gap: 20px;
   }
-  .listening-overlay.show { display: flex; }
+  #listeningOverlay.show { display: flex; }
   .listening-text { font-size: 1.3rem; color: #4fc3f7; letter-spacing: 0.15em; text-shadow: 0 0 15px rgba(79,195,247,0.6); }
   .wave-bars { display: flex; gap: 5px; align-items: center; height: 40px; }
   .wave-bar { width: 7px; background: #4fc3f7; border-radius: 4px; animation: wave 0.8s ease-in-out infinite; }
@@ -106,116 +145,47 @@
     background: transparent; color: #8a6818; font-size: 0.82rem; cursor: pointer;
   }
 
-  @keyframes logoPulse {
-    0%,100% { transform: scale(1); box-shadow: 0 0 30px rgba(212,175,55,0.5); }
-    50% { transform: scale(1.08); box-shadow: 0 0 60px rgba(212,175,55,0.9); }
-  }
-  @keyframes tapBounce {
-    0%,100% { transform: translateY(0); opacity:1; }
-    50% { transform: translateY(-8px); opacity:0.7; }
-  }
-  @keyframes fadeInUp {
-    from { opacity:0; transform:translateY(20px); }
-    to   { opacity:1; transform:translateY(0); }
-  }
-  .fade-in   { animation: fadeInUp 1.4s ease forwards; opacity:0; }
-  .fade-in-1 { animation-delay: 0.4s; }
-  .fade-in-2 { animation-delay: 1.0s; }
-  .fade-in-3 { animation-delay: 1.6s; }
-  /* pulsanti uno alla volta */
-  .action-btn { opacity:0; animation: fadeInUp 1.2s ease forwards; }
-  .action-btn:nth-child(1) { animation-delay: 1.0s; }
-  .action-btn:nth-child(2) { animation-delay: 1.8s; }
+  /* Preview foto */
+  #photoPreview { display: none; position: fixed; bottom: 200px; left: 50%; transform: translateX(-50%); width: 200px; z-index: 15; border-radius: 10px; overflow: hidden; border: 1px solid rgba(212,175,55,0.3); }
+  #photoPreview.show { display: block; }
+  #photoPreview img { width: 100%; display: block; }
+  #photoResult { padding: 8px; background: rgba(10,8,0,0.9); font-size: 0.78rem; color: #c8b060; text-align: center; }
+
+  #cameraInput { display: none; }
 </style>
 </head>
 <body>
-<!-- Schermata intro -->
-<div id="startOverlay" style="
-  position:fixed;inset:0;z-index:999;
-  background:#000;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;
-  cursor:pointer;
-">
-<script>
-(function(){
-  function dismissOverlay(e) {
-    if (e && e.cancelable) e.preventDefault();
-    var o = document.getElementById('startOverlay');
-    if (!o || o._gone) return;
-    o._gone = true;
-    o.style.transition = 'opacity 1.2s ease';
-    o.style.opacity = '0';
-    o.style.pointerEvents = 'none';
-    setTimeout(function(){ if(o.parentNode) o.parentNode.removeChild(o); }, 1200);
-    // Aspetta che POOL sia definito prima di avviare il video
-    function avviaVideo() {
-      if (window.startForest) window.startForest();
-      if (!window.POOL || !window.crossfadeTo || !window.loopPool) {
-        setTimeout(avviaVideo, 100);
-        return;
-      }
-      var tv = document.createElement('video');
-      tv.src = window.POOL.entrata[0];
-      tv.oncanplay = function(){
-        window.crossfadeTo(window.POOL.entrata[0], false, function(){ window.loopPool(window.POOL.breve); });
-      };
-      tv.onerror = function(){
-        window.loopPool(window.POOL.breve);
-      };
-      tv.load();
-      setTimeout(function(){ if(!window._videoStarted) window.loopPool(window.POOL.breve); }, 5000);
-    }
-    avviaVideo();
-  }
-  // Attacca subito — senza aspettare DOMContentLoaded
-  function attach() {
-    var o = document.getElementById('startOverlay');
-    if (!o) { setTimeout(attach, 50); return; }
-    o.addEventListener('touchstart', dismissOverlay, {passive:false});
-    o.addEventListener('click', dismissOverlay);
-  }
-  attach();
-})();
-</script>
-  <img id="introLogo" src="https://fdnegozi-stack.github.io/lafataeildrago-backend/stemma%20trasparente.png" 
-    alt="La Fata & il Drago"
-    style="width:140px;height:140px;object-fit:contain;border-radius:50%;
-    animation:logoPulse 2s ease-in-out infinite;
-    box-shadow:0 0 40px rgba(212,175,55,0.6);
-    pointer-events:none;"
-  />
-  <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
-    <p style="color:#d4af37;font-family:Georgia,serif;font-size:1.4rem;letter-spacing:0.2em;text-shadow:0 0 20px rgba(212,175,55,0.8);">✦ la Fata &amp; il Drago ✦</p>
-    <div style="display:flex;align-items:center;gap:10px;animation:tapBounce 1.5s ease-in-out infinite;">
-      <span style="font-size:1.8rem;">👆</span>
-      <span id="toccaTesto" style="color:#a07830;font-family:Georgia,serif;font-size:0.9rem;letter-spacing:0.15em;">tocca per iniziare</span>
+
+<!-- Intro overlay -->
+<div id="startOverlay" onclick="avvia()">
+  <img id="introLogo" src="stemma trasparente.png" alt="La Fata & il Drago"/>
+  <div class="intro-text">
+    <p class="intro-title">✦ la Fata &amp; il Drago ✦</p>
+    <div class="intro-tap">
+      <span style="font-size:1.8rem">👆</span>
+      <span>tocca per iniziare</span>
     </div>
   </div>
 </div>
-<div class="particles" id="particles"></div>
-<input type="file" id="cameraInput" accept="image/*" capture="environment">
 
-<!-- Video fullscreen background -->
-<div class="avatar-frame" id="avatarFrame">
+<!-- Video background -->
+<div id="avatarFrame">
   <video class="vid-layer hidden" id="vidA" playsinline muted></video>
   <video class="vid-layer hidden" id="vidB" playsinline muted></video>
-  <img class="logo-fallback" id="logoFallback" src="https://fdnegozi-stack.github.io/lafataeildrago-backend/stemma%20trasparente.png" alt="Tania" style="display:none"/>
-  <div class="status-ring idle" id="statusRing"></div>
+  <img id="logoFallback" src="stemma trasparente.png" alt="Tania" style="object-fit:contain;padding:20%;"/>
 </div>
 
-<div class="main">
-  <!-- Logo in alto a sinistra -->
-  <div class="logo-top">
-    <img src="https://fdnegozi-stack.github.io/lafataeildrago-backend/stemma%20trasparente.png" alt="F&D"/>
-  </div>
+<!-- Logo top left -->
+<div id="logoTop">
+  <img src="stemma trasparente.png" alt="F&D"/>
+</div>
 
-  <div class="response-bubble" id="responseBubble">
+<!-- Status ring -->
+<div id="statusRing"></div>
 
-  </div>
-  <div class="photo-preview" id="photoPreview">
-    <img id="photoImg" src="" alt="foto prodotto"/>
-    <div class="photo-result" id="photoResult"></div>
-  </div>
+<!-- UI overlay -->
+<div id="ui">
+  <div id="responseBubble"></div>
   <div class="action-buttons">
     <div class="action-btn" onclick="openCamera()">
       <div class="btn-circle" id="cameraBtn">📷</div>
@@ -226,11 +196,12 @@
       <span class="btn-label">Chiedi</span>
     </div>
   </div>
-  <p class="titolo-basso fade-in fade-in-3">✦ la Fata &amp; il Drago ✦</p>
+  <p class="titolo-basso">✦ la Fata &amp; il Drago ✦</p>
 </div>
 
-<div class="listening-overlay" id="listeningOverlay">
-  <p class="listening-text" id="ascoltaTesto">Sto ascoltando...</p>
+<!-- Overlay ascolto -->
+<div id="listeningOverlay">
+  <p class="listening-text">Sto ascoltando...</p>
   <div class="wave-bars">
     <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
     <div class="wave-bar"></div><div class="wave-bar"></div>
@@ -238,104 +209,45 @@
   <button class="cancel-btn" onclick="cancelListening()">✕ Annulla</button>
 </div>
 
+<input type="file" id="cameraInput" accept="image/*" capture="environment">
+<div id="photoPreview"><img id="photoImg" src="" alt=""/><div id="photoResult"></div></div>
+
 <script>
-// ── Config ──────────────────────────────────────────────────────
+// ── Config ───────────────────────────────────────────────────────
+const SERVER = 'https://common-gore-productive-streets.trycloudflare.com';
+const LINGUE = ['it','en','de','fr','es','nl','pl','cs','sk','hu','ro','bg','sl','hr','sr','bs','sq','el','uk','ru','et','lv','lt','sv','no','da','fi'];
+const _lr = (navigator.language||'it').split('-')[0].toLowerCase();
+const LANG = LINGUE.includes(_lr) ? _lr : 'it';
 
-
-// Sospendi/riprendi audio quando app va in background
-document.addEventListener('visibilitychange', () => {
-  if (!actx) return;
-  if (document.hidden) {
-    actx.suspend();
-  } else {
-    actx.resume();
-  }
-});
-
-const SERVER = 'https://planners-warned-update-founded.trycloudflare.com';
-const LINGUE_SUPPORTATE = ['it','en','de','fr','es','nl','pl','cs','sk','hu','ro','bg','sl','hr','sr','bs','sq','el','uk','ru','et','lv','lt','sv','no','da','fi'];
-const _langRaw = (navigator.language || 'it').split('-')[0].toLowerCase();
-const LANG = LINGUE_SUPPORTATE.includes(_langRaw) ? _langRaw : 'it';
-
-// ── Traduzioni UI ────────────────────────────────────────────────
-const I18N = {
-  tocca:    { it:'tocca per iniziare', en:'tap to begin', de:'tippen zum Starten', fr:'touchez pour commencer',
-               es:'toca para empezar', nl:'tik om te beginnen', pl:'dotknij, aby zacząć', cs:'dotkněte se pro start',
-               sk:'dotknite sa pre štart', hu:'érintse meg a kezdéshez', ro:'atingeți pentru a începe',
-               bg:'докоснете за начало', sl:'dotaknite se za začetek', hr:'dodirnite za početak',
-               sr:'dodirnite za početak', bs:'dodirnite za početak', sq:'prekni për të filluar',
-               el:'αγγίξτε για να ξεκινήσετε', uk:'торкніться, щоб почати', ru:'нажмите для начала',
-               et:'puudutage alustamiseks', lv:'pieskarieties, lai sāktu', lt:'palieskite, norėdami pradėti',
-               sv:'tryck för att börja', no:'trykk for å starte', da:'tryk for at starte', fi:'napauta aloittaaksesi' },
-  ascolta:  { it:'Sto ascoltando...', en:'Listening...', de:'Ich höre zu...', fr:"J'écoute...",
-               es:'Escuchando...', nl:'Luisteren...', pl:'Słucham...', cs:'Poslouchám...',
-               sk:'Počúvam...', hu:'Hallgatlak...', ro:'Ascult...', bg:'Слушам...',
-               sl:'Poslušam...', hr:'Slušam...', sr:'Slušam...', bs:'Slušam...', sq:'Po dëgjoj...',
-               el:'Ακούω...', uk:'Слухаю...', ru:'Слушаю...', et:'Kuulan...', lv:'Klausos...',
-               lt:'Klausau...', sv:'Lyssnar...', no:'Lytter...', da:'Lytter...', fi:'Kuuntelen...' }
-};
-const t = k => (I18N[k]||{})[LANG] || (I18N[k]||{})['it'];
-
-// ── Applica traduzioni UI ───────────────────────────────────────
-document.getElementById('toccaTesto').textContent  = t('tocca');
-document.getElementById('ascoltaTesto').textContent = t('ascolta');
-
-// ── Preload video in background ─────────────────────────────────
-function preloadVideos() {
-  const tuttiIVideo = [
-    'attesa breve 1.mp4','attesa breve 2.mp4','attesa breve 3.mp4',
-    'attesa breve 4.mp4','attesa breve 5.mp4',
-    'in attesa lunga 1.mp4','in attesa lunga 2.mp4',
-    'entrata.mp4','parlato normale 1.mp4','parlato normale 2.mp4',
-    'parlato con enfasi.mp4'
-  ];
-  // Precarica in sequenza con bassa priorità
-  let i = 0;
-  function preloadNext() {
-    if (i >= tuttiIVideo.length) return;
-    const v = document.createElement('video');
-    v.preload = 'auto';
-    v.muted = true;
-    v.src = SERVER + '/video/' + tuttiIVideo[i];
-    v.load();
-    v.oncanplaythrough = () => { i++; setTimeout(preloadNext, 200); };
-    v.onerror = () => { i++; setTimeout(preloadNext, 200); };
-  }
-  preloadNext();
-}
-
-// ── Video pool ───────────────────────────────────────────────────
-// SERVER è già definito sopra — i video vengono serviti dal tunnel
+// ── Video pool ────────────────────────────────────────────────────
 const V = SERVER + '/video/';
 const POOL = {
-  entrata:      [V+'entrata.mp4'],
-  breve:        [V+'attesa breve 1.mp4',V+'attesa breve 2.mp4',V+'attesa breve 3.mp4',V+'attesa breve 4.mp4',V+'attesa breve 5.mp4'],
-  lunga:        [V+'in attesa lunga 1.mp4',V+'in attesa lunga 2.mp4',V+'in attesa lunga 3.mp4',V+'in attesa lunga 4.mp4'],
-  parlato:      [V+'parlato normale 1.mp4',V+'parlato normale 2.mp4'],
-  enfasi:       [V+'parlato con enfasi.mp4'],
-  offesaLieve:  [V+'offesa lieve.mp4'],
-  offesaMedia:  [V+'offesa media.mp4'],
-  offesaGrave:  [V+'offesa grave.mp4'],
+  entrata:     [V+'entrata.mp4'],
+  breve:       [V+'attesa breve 1.mp4',V+'attesa breve 2.mp4',V+'attesa breve 3.mp4',V+'attesa breve 4.mp4',V+'attesa breve 5.mp4'],
+  lunga:       [V+'in attesa lunga 1.mp4',V+'in attesa lunga 2.mp4',V+'in attesa lunga 3.mp4',V+'in attesa lunga 4.mp4'],
+  parlato:     [V+'parlato normale 1.mp4',V+'parlato normale 2.mp4'],
+  enfasi:      [V+'parlato con enfasi.mp4'],
+  offesaLieve: [V+'offesa lieve.mp4'],
+  offesaMedia: [V+'offesa media.mp4'],
+  offesaGrave: [V+'offesa grave.mp4'],
 };
-const rand = arr => arr[Math.floor(Math.random()*arr.length)];
+const rand = a => a[Math.floor(Math.random()*a.length)];
 
-// rimuoviOverlay gestita inline nell'overlay
-
-// ── Player crossfade ─────────────────────────────────────────────
+// ── Player crossfade ──────────────────────────────────────────────
 const vidA = document.getElementById('vidA');
 const vidB = document.getElementById('vidB');
-const logo = document.getElementById('logoFallback');
-let activeSlot = null; // 'A' o 'B'
+const logoF = document.getElementById('logoFallback');
+let activeSlot = null;
 let loopOn = false;
 
-window.crossfadeTo = function crossfadeTo(src, loop=true, onEnded=null) {
+function crossfadeTo(src, loop=true, onEnded=null) {
   const next = activeSlot==='A' ? vidB : vidA;
   const prev = activeSlot==='A' ? vidA  : vidB;
   next.src = src; next.loop = loop; next.muted = true; next.load();
   next.oncanplay = () => {
     next.play().catch(()=>{});
     next.classList.remove('hidden'); next.classList.add('visible');
-    logo.classList.add('hidden');
+    logoF.classList.add('hidden');
     if (activeSlot !== null) {
       prev.classList.remove('visible'); prev.classList.add('hidden');
       setTimeout(()=>{ prev.pause(); prev.src=''; }, 500);
@@ -345,7 +257,7 @@ window.crossfadeTo = function crossfadeTo(src, loop=true, onEnded=null) {
   };
 }
 
-window.loopPool = function loopPool(pool) {
+function loopPool(pool) {
   loopOn = true;
   function playNext() {
     if (!loopOn) return;
@@ -355,7 +267,7 @@ window.loopPool = function loopPool(pool) {
     next.oncanplay = () => {
       next.play().catch(()=>{});
       next.classList.remove('hidden'); next.classList.add('visible');
-      logo.classList.add('hidden');
+      logoF.classList.add('hidden');
       if (activeSlot !== null) {
         prev.classList.remove('visible'); prev.classList.add('hidden');
         setTimeout(()=>{ prev.pause(); prev.src=''; }, 500);
@@ -366,56 +278,62 @@ window.loopPool = function loopPool(pool) {
   }
   playNext();
 }
-window.stopLoop = function stopLoop() { loopOn = false; }
+function stopLoop() { loopOn = false; }
 
-// ── Sottofondo bosco ─────────────────────────────────────────────
+// ── Audio foresta (MP3) ───────────────────────────────────────────
 let forestAudio = null;
-// actx stub per compatibilità con visibilitychange
-const actx = {
-  suspend: () => { if (forestAudio) forestAudio.pause(); },
-  resume:  () => { if (forestAudio) forestAudio.play().catch(()=>{}); }
-};
-window.startForest = function startForest() {
+function startForest() {
   if (forestAudio) return;
   try {
     forestAudio = new Audio('the-voices-of-birds-in-the-forest-7715.mp3');
-    forestAudio.loop   = true;
-    forestAudio.volume = 0.18;
-    forestAudio.play().catch(() => {});
-  } catch(e) {}
+    forestAudio.loop = true;
+    forestAudio.volume = 0.25;
+    forestAudio.play().catch(()=>{});
+  } catch(e){}
 }
 
-// ── Particelle ───────────────────────────────────────────────────
-const pc = document.getElementById('particles');
-for (let i=0;i<25;i++) {
-  const p = document.createElement('div'); p.className='particle';
-  p.style.cssText=`left:${Math.random()*100}%;animation-duration:${10+Math.random()*14}s;animation-delay:${Math.random()*12}s;`;
-  pc.appendChild(p);
+// Pausa/riprendi quando app va in background
+document.addEventListener('visibilitychange', () => {
+  if (!forestAudio) return;
+  if (document.hidden) forestAudio.pause();
+  else forestAudio.play().catch(()=>{});
+});
+
+// ── Avvio al tocco ────────────────────────────────────────────────
+function avvia() {
+  const o = document.getElementById('startOverlay');
+  if (o) { o.style.opacity='0'; o.style.pointerEvents='none'; setTimeout(()=>o.remove(),1000); }
+
+  startForest();
+
+  // Mostra UI
+  document.getElementById('ui').classList.add('show');
+  document.getElementById('logoTop').classList.add('show');
+  document.getElementById('statusRing').classList.add('show');
+  setStatus('idle');
+
+  // Avvia video entrata
+  crossfadeTo(POOL.entrata[0], false, ()=>loopPool(POOL.breve));
 }
 
-// ── Stato ────────────────────────────────────────────────────────
+// ── Stato ─────────────────────────────────────────────────────────
 let isBusy = false;
-const storiaCon = []; // storia conversazione per contesto
-const MAX_STORIA = 4; // ultimi 4 scambi
+const storiaCon = [];
 const ring   = document.getElementById('statusRing');
 const bubble = document.getElementById('responseBubble');
 const overlay= document.getElementById('listeningOverlay');
 const micBtn = document.getElementById('micBtn');
 const camInp = document.getElementById('cameraInput');
-const prevDiv= document.getElementById('photoPreview');
-const prevImg= document.getElementById('photoImg');
-const prevRes= document.getElementById('photoResult');
 
-const setStatus = s => ring.className = 'status-ring '+s;
+const setStatus = s => { ring.className = ''; ring.classList.add('show', s); };
 const showText  = t => {
   bubble.textContent = t;
-  if (t) bubble.classList.add('visible');
-  else bubble.classList.remove('visible');
+  t ? bubble.classList.add('visible') : bubble.classList.remove('visible');
 };
 
-// ── Rilevamento offese ───────────────────────────────────────────
-const RE_GRAVE = /cazzo|vaffanculo|troia|puttana|bastard|merda.*tua|fuck.*you|scheiss|merde|joder|kurwa/i;
-const RE_MEDIA = /stupida|cretina|idiota|scema|deficiente|inutile|brutta|schifo|bitch|dumb|blöd/i;
+// ── Offese ────────────────────────────────────────────────────────
+const RE_GRAVE = /cazzo|vaffanculo|troia|puttana|bastard|fuck.*you|scheiss|merde|joder|kurwa/i;
+const RE_MEDIA = /stupida|cretina|idiota|scema|deficiente|schifo|bitch|dumb|blöd/i;
 const RE_LIEVE = /robot|macchina|stupida app|non servi|boring|pathetic/i;
 function offesa(t) {
   if (RE_GRAVE.test(t)) return 'grave';
@@ -424,7 +342,7 @@ function offesa(t) {
   return null;
 }
 
-// ── Fetch SSE ────────────────────────────────────────────────────
+// ── Fetch SSE ─────────────────────────────────────────────────────
 async function fetchSSE(url, body, onToken, onDone, onError) {
   try {
     const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
@@ -440,20 +358,19 @@ async function fetchSSE(url, body, onToken, onDone, onError) {
   } catch(e) { onError(e.message); }
 }
 
-// ── TTS audio + lip-sync background (Soluzione B) ───────────────
+// ── TTS + lipsync ─────────────────────────────────────────────────
 async function speak(testo, tipo='normale') {
-  // Avvia lip-sync in background
   fetch(SERVER+'/api/tts-lipsync', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ text:testo, lang:LANG, tipo })
   }).then(async r => {
     const d = await r.json();
     if (d.ok && d.videoUrl) {
+      stopLoop();
       crossfadeTo(SERVER+d.videoUrl, false, ()=>{ loopPool(POOL.breve); setStatus('idle'); });
     }
   }).catch(()=>{});
 
-  // Audio TTS subito
   try {
     const r = await fetch(SERVER+'/api/tts', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -461,31 +378,28 @@ async function speak(testo, tipo='normale') {
     });
     if (r.ok) {
       const blob = await r.blob();
-      const url  = URL.createObjectURL(blob);
-      const aud  = new Audio(url);
+      const url = URL.createObjectURL(blob);
+      const aud = new Audio(url);
       loopPool(POOL.breve); setStatus('speak');
       aud.play();
-      aud.onended = () => { URL.revokeObjectURL(url); setStatus('idle'); };
+      aud.onended = ()=>{ URL.revokeObjectURL(url); setStatus('idle'); };
       return;
     }
   } catch(e){}
   setStatus('idle');
 }
 
-// ── Avvio ────────────────────────────────────────────────────────
-window.addEventListener('load', () => {
-  // Solo preload — il video parte dopo il tap sull'overlay
-  setTimeout(preloadVideos, 500);
-});
-
-// ── Camera ───────────────────────────────────────────────────────
+// ── Camera ────────────────────────────────────────────────────────
 function openCamera() { if (!isBusy) camInp.click(); }
 camInp.addEventListener('change', async () => {
   const file = camInp.files[0]; if (!file) return;
   isBusy=true; setStatus('think'); loopPool(POOL.lunga);
+  const prevDiv = document.getElementById('photoPreview');
+  const prevImg = document.getElementById('photoImg');
+  const prevRes = document.getElementById('photoResult');
   prevImg.src = URL.createObjectURL(file);
   prevDiv.classList.add('show');
-  prevRes.textContent='🔍 Sto cercando il prodotto...';
+  prevRes.textContent='🔍 Sto cercando...';
   showText('Analisi in corso...');
   try {
     const fd = new FormData(); fd.append('image', file);
@@ -495,27 +409,26 @@ camInp.addEventListener('change', async () => {
       const top = data.results[0];
       setStatus('speak'); showText('');
       await fetchSSE(SERVER+'/api/avatar-response', { prodotto:top, lingua:LANG, mode:'mobile' },
-        t=>{ bubble.textContent+=t; },
+        t=>{ bubble.textContent+=t; bubble.classList.add('visible'); },
         ()=>{ speak(bubble.textContent); },
         ()=>{ showText('Ho trovato: '+top.nome); }
       );
       prevRes.textContent=`${top.nome} — €${top.prezzo}`;
     } else {
-      showText('Non ho riconosciuto il prodotto. Riprova con una foto più nitida.');
-      prevRes.textContent='Prodotto non riconosciuto';
+      showText('Non ho riconosciuto il prodotto. Riprova.');
+      prevRes.textContent='';
     }
-  } catch(e) { showText('Errore durante la ricerca.'); prevRes.textContent=''; }
+  } catch(e) { showText('Errore. Riprova.'); }
   isBusy=false; setStatus('idle'); camInp.value='';
 });
 
-// ── Microfono ────────────────────────────────────────────────────
+// ── Microfono ─────────────────────────────────────────────────────
 const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
 let rec = null;
 
 function startListening() {
   if (isBusy) return;
-  startForest();
-  if (!SR) { showText('⚠️ Browser non supporta riconoscimento vocale. Usa Chrome.'); return; }
+  if (!SR) { showText('⚠️ Usa Chrome per il riconoscimento vocale.'); return; }
   rec = new SR();
   rec.lang=LANG; rec.continuous=false; rec.interimResults=false; rec.maxAlternatives=1;
 
@@ -528,11 +441,10 @@ function startListening() {
   rec.onresult = async event => {
     const testo = event.results[0][0].transcript.trim();
     overlay.classList.remove('show'); micBtn.classList.remove('active');
-    if (!testo||testo.length<2) { showText('Non ho capito. Puoi ripetere?'); isBusy=false; setStatus('idle'); return; }
+    if (!testo||testo.length<2) { showText('Non ho capito. Riprova.'); isBusy=false; setStatus('idle'); return; }
 
     setStatus('think'); loopPool(POOL.lunga);
 
-    // Gestione offese
     const off = offesa(testo);
     if (off) {
       stopLoop();
@@ -540,15 +452,15 @@ function startListening() {
       crossfadeTo(rand(pool), false, ()=>loopPool(POOL.breve));
     }
 
-    let risposta = '';
-    // Aggiorna storia conversazione
-    storiaCon.push({ role: 'user', content: testo });
-    if (storiaCon.length > MAX_STORIA * 2) storiaCon.splice(0, 2);
+    storiaCon.push({ role:'user', content:testo });
+    if (storiaCon.length > 8) storiaCon.splice(0,2);
 
+    let risposta = '';
     await fetchSSE(
-      SERVER+'/api/voice-answer', { text:testo, lang:LANG, mode:'mobile', storia: storiaCon.slice(-MAX_STORIA*2) },
+      SERVER+'/api/voice-answer', { text:testo, lang:LANG, mode:'mobile', storia:storiaCon.slice(-8) },
       t => { risposta+=t; showText(risposta); },
       () => {
+        storiaCon.push({ role:'assistant', content:risposta });
         const isEnfasi = /harry potter|signore degli anelli|witcher|dungeons|esclusiv|novit/i.test(risposta);
         speak(risposta, isEnfasi?'enfasi':'normale');
       },
@@ -561,7 +473,7 @@ function startListening() {
   rec.onerror = e => {
     overlay.classList.remove('show'); micBtn.classList.remove('active');
     isBusy=false; setStatus('idle'); loopPool(POOL.breve);
-    if (e.error==='no-speech') showText('Non ho sentito nulla. Riprova.');
+    if (e.error==='no-speech') showText('Non ho sentito. Riprova.');
     else if (e.error==='not-allowed') showText('⚠️ Permesso microfono negato.');
     else showText('Errore microfono. Riprova.');
   };
@@ -579,7 +491,6 @@ function cancelListening() {
   overlay.classList.remove('show'); micBtn.classList.remove('active');
   setStatus('idle'); isBusy=false; loopPool(POOL.breve);
 }
-
 </script>
 </body>
 </html>
