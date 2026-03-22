@@ -256,26 +256,35 @@ function crossfadeTo(src, loop=true, onEnded=null) {
   };
 }
 
+let currentPool = null;
+
 function loopPool(pool) {
   loopOn = true;
-  function playNext() {
-    if (!loopOn) return;
-    const next = activeSlot==='A' ? vidB : vidA;
-    const prev = activeSlot==='A' ? vidA  : vidB;
-    next.src = rand(pool); next.loop = false; next.muted = true; next.load();
-    next.oncanplay = () => {
-      next.play().catch(()=>{});
-      next.classList.remove('hidden'); next.classList.add('visible');
-      logoF.classList.add('hidden');
-      if (activeSlot !== null) {
-        prev.classList.remove('visible'); prev.classList.add('hidden');
-        setTimeout(()=>{ prev.pause(); prev.src=''; }, 500);
-      }
-      activeSlot = activeSlot==='A' ? 'B' : 'A';
-      next.onended = playNext;
-    };
+  currentPool = pool;
+  const curr = activeSlot === 'A' ? vidA : vidB;
+  if (curr && !curr.paused && !curr.ended && curr.src) {
+    curr.onended = () => { if (loopOn && currentPool === pool) _playNext(pool); };
+    return;
   }
-  playNext();
+  _playNext(pool);
+}
+
+function _playNext(pool) {
+  if (!loopOn) return;
+  const next = activeSlot==='A' ? vidB : vidA;
+  const prev = activeSlot==='A' ? vidA  : vidB;
+  next.src = rand(pool); next.loop = false; next.muted = true; next.load();
+  next.oncanplay = () => {
+    next.play().catch(()=>{});
+    next.classList.remove('hidden'); next.classList.add('visible');
+    logoF.classList.add('hidden');
+    if (activeSlot !== null) {
+      prev.classList.remove('visible'); prev.classList.add('hidden');
+      setTimeout(()=>{ prev.pause(); prev.src=''; }, 500);
+    }
+    activeSlot = activeSlot==='A' ? 'B' : 'A';
+    next.onended = () => { if (loopOn && currentPool === pool) _playNext(pool); };
+  };
 }
 function stopLoop() { loopOn = false; }
 
@@ -464,7 +473,7 @@ function startListening() {
     if (!testo||testo.length<2) { showText('Non ho capito. Riprova.'); isBusy=false; setStatus('idle'); return; }
 
     setStatus('think');
-    if (!loopOn) loopPool(POOL.lunga); // mantieni video attivo
+    loopPool(POOL.lunga); // mantieni video attivo durante elaborazione
 
     const off = offesa(testo);
     if (off) {
