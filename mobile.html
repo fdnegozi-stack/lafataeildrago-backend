@@ -31,12 +31,9 @@
   .main > * { pointer-events: auto; }
   .logo-top {
     position: fixed; top: 14px; left: 16px; z-index: 20;
-    width: 52px; height: 52px; border-radius: 50%;
-    border: 1px solid rgba(212,175,55,0.5);
-    box-shadow: 0 0 12px rgba(212,175,55,0.3);
-    overflow: hidden; background: rgba(0,0,0,0.4);
+    width: 52px; height: 52px;
   }
-  .logo-top img { width: 100%; height: 100%; object-fit: cover; }
+  .logo-top img { width: 100%; height: 100%; object-fit: contain; }
   .titolo-basso {
     font-size: 1.1rem; letter-spacing: 0.18em; color: #d4af37;
     text-shadow: 0 0 15px rgba(212,175,55,0.8);
@@ -156,15 +153,18 @@
         var tv = document.createElement('video');
         tv.src = window.POOL.entrata[0];
         // timeout di sicurezza: se entrata.mp4 non arriva in 4s, vai diretto al loop breve
-        var fallbackTimer = setTimeout(function(){ window.loopPool(window.POOL.breve); }, 4000);
         tv.oncanplay = function(){
-          clearTimeout(fallbackTimer);
           window.crossfadeTo(window.POOL.entrata[0], false, function(){ window.loopPool(window.POOL.breve); });
         };
         tv.onerror = function(){
-          clearTimeout(fallbackTimer);
-          window.loopPool(window.POOL.breve);
+          // tunnel non disponibile — sfondo scuro, riprova ogni 8s
+          setTimeout(function(){ if(window.POOL) window.loopPool(window.POOL.breve); }, 8000);
         };
+        tv.load();
+        // Se dopo 5s non è ancora pronto, proviamo direttamente il loop breve
+        setTimeout(function(){
+          if(!window._videoStarted) window.loopPool(window.POOL.breve);
+        }, 5000);
       }
     }, 100);
   }
@@ -200,7 +200,7 @@
 <div class="avatar-frame" id="avatarFrame">
   <video class="vid-layer hidden" id="vidA" playsinline muted></video>
   <video class="vid-layer hidden" id="vidB" playsinline muted></video>
-  <img class="logo-fallback" id="logoFallback" src="https://fdnegozi-stack.github.io/lafataeildrago-backend/stemma%20trasparente.png" alt="Tania"/>
+  <img class="logo-fallback" id="logoFallback" src="https://fdnegozi-stack.github.io/lafataeildrago-backend/stemma%20trasparente.png" alt="Tania" style="display:none"/>
   <div class="status-ring idle" id="statusRing"></div>
 </div>
 
