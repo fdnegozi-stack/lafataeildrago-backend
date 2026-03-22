@@ -135,7 +135,7 @@
 </head>
 <body>
 <!-- Schermata intro -->
-<div id="startOverlay" style="
+<div id="startOverlay" onclick="rimuoviOverlay(event)" style="
   position:fixed;inset:0;z-index:999;
   background:#000;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;
@@ -204,31 +204,7 @@
 
 <script>
 // ── Config ──────────────────────────────────────────────────────
-function rimuoviOverlay(e) {
-  if (e) e.preventDefault();
-  alert('tocco rilevato');
-  const o = document.getElementById('startOverlay');
-  if (!o || o._removing) return;
-  o._removing = true;
-  o.style.transition = 'opacity 1s ease';
-  o.style.opacity = '0';
-  o.style.pointerEvents = 'none';
-  setTimeout(() => o.remove(), 1000);
-  startForest();
-  // Avvia il video dopo il primo tocco
-  const tv = document.createElement('video');
-  tv.src = POOL.entrata[0];
-  tv.oncanplay = () => crossfadeTo(POOL.entrata[0], false, ()=>loopPool(POOL.breve));
-  tv.onerror   = () => loopPool(POOL.breve);
-}
 
-// Aggiungi listener overlay dopo DOM pronto
-document.addEventListener('DOMContentLoaded', () => {
-  const o = document.getElementById('startOverlay');
-  if (!o) return;
-  o.addEventListener('touchstart', rimuoviOverlay, { passive: false });
-  o.addEventListener('click', rimuoviOverlay);
-});
 
 // Sospendi/riprendi audio quando app va in background
 document.addEventListener('visibilitychange', () => {
@@ -306,6 +282,23 @@ const POOL = {
   offesaGrave:  [V+'offesa grave.mp4'],
 };
 const rand = arr => arr[Math.floor(Math.random()*arr.length)];
+
+function rimuoviOverlay(e) {
+  if (e) e.preventDefault();
+  const o = document.getElementById('startOverlay');
+  if (!o || o._removing) return;
+  o._removing = true;
+  o.style.transition = 'opacity 1s ease';
+  o.style.opacity = '0';
+  o.style.pointerEvents = 'none';
+  setTimeout(() => o.remove(), 1000);
+  startForest();
+  // Avvia il video dopo il primo tocco
+  const tv = document.createElement('video');
+  tv.src = POOL.entrata[0];
+  tv.oncanplay = () => crossfadeTo(POOL.entrata[0], false, ()=>loopPool(POOL.breve));
+  tv.onerror   = () => loopPool(POOL.breve);
+}
 
 // ── Player crossfade ─────────────────────────────────────────────
 const vidA = document.getElementById('vidA');
@@ -571,6 +564,11 @@ function cancelListening() {
   overlay.classList.remove('show'); micBtn.classList.remove('active');
   setStatus('idle'); isBusy=false; loopPool(POOL.breve);
 }
+  // Touch listener overlay
+  (function() {
+    var o = document.getElementById('startOverlay');
+    if (o) o.addEventListener('touchend', rimuoviOverlay, { passive: false });
+  })();
 </script>
 </body>
 </html>
