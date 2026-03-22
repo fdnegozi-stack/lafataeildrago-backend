@@ -74,9 +74,9 @@
     pointer-events: none; opacity: 0;
   }
   #ui.show { opacity: 1; transition: opacity 2.5s ease 0.5s; pointer-events: auto; }
-  .action-buttons { opacity: 0; transform: translateY(20px); transition: opacity 2s ease 1.5s, transform 2s ease 1.5s; }
+  .action-buttons { display: flex; gap: 24px; align-items: flex-end; justify-content: center; opacity: 0; transform: translateY(20px); transition: opacity 2s ease 1.5s, transform 2s ease 1.5s; }
   #ui.show .action-buttons { opacity: 1; transform: translateY(0); }
-  .titolo-basso { opacity: 0; transform: translateY(10px); transition: opacity 2s ease 2.5s, transform 2s ease 2.5s; }
+  .titolo-basso { font-size: 1rem; letter-spacing: 0.18em; color: #d4af37; text-shadow: 0 0 12px rgba(212,175,55,0.7); opacity: 0; transform: translateY(10px); transition: opacity 2s ease 2.5s, transform 2s ease 2.5s; }
   #ui.show .titolo-basso { opacity: 1; transform: translateY(0); }
 
   /* Logo in alto */
@@ -114,7 +114,6 @@
   #responseBubble.visible { opacity: 1; pointer-events: auto; }
 
   /* Pulsanti */
-  .action-buttons { display: flex; gap: 24px; align-items: flex-end; justify-content: center; }
   .action-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
   .btn-circle {
     width: 64px; height: 64px; border-radius: 50%;
@@ -127,7 +126,6 @@
   .btn-label { font-size: 0.68rem; color: #8a6818; letter-spacing: 0.12em; text-transform: uppercase; }
 
   /* Titolo sotto */
-  .titolo-basso { font-size: 1rem; letter-spacing: 0.18em; color: #d4af37; text-shadow: 0 0 12px rgba(212,175,55,0.7); }
 
   /* Overlay ascolto */
   #listeningOverlay {
