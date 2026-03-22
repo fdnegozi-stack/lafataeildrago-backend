@@ -161,7 +161,7 @@
 
 <script>
 // ── Config ──────────────────────────────────────────────────────
-const SERVER = 'https://dolls-maria-fur-windsor.trycloudflare.com';
+const SERVER = 'https://common-gore-productive-streets.trycloudflare.com';
 const LINGUE_SUPPORTATE = ['it','en','de','fr','es','nl','pl','cs','sk','hu','ro','bg','sl','hr','sr','bs','sq','el','uk','ru','et','lv','lt','sv','no','da','fi'];
 const _langRaw = (navigator.language || 'it').split('-')[0].toLowerCase();
 const LANG = LINGUE_SUPPORTATE.includes(_langRaw) ? _langRaw : 'it';
@@ -258,7 +258,7 @@ function startForest() {
   if (actx) return;
   try {
     actx = new (window.AudioContext||window.webkitAudioContext)();
-    const g = actx.createGain(); g.gain.value = 0.05; g.connect(actx.destination);
+    const g = actx.createGain(); g.gain.value = 0.12; g.connect(actx.destination);
     // Vento
     const buf = actx.createBuffer(1, actx.sampleRate*4, actx.sampleRate);
     const d = buf.getChannelData(0);
@@ -276,12 +276,16 @@ function startForest() {
       o.frequency.exponentialRampToValueAtTime(f*1.4, actx.currentTime+0.08);
       o.frequency.exponentialRampToValueAtTime(f*0.85, actx.currentTime+0.18);
       e.gain.setValueAtTime(0, actx.currentTime);
-      e.gain.linearRampToValueAtTime(0.25, actx.currentTime+0.04);
+      e.gain.linearRampToValueAtTime(0.5, actx.currentTime+0.04);
       e.gain.exponentialRampToValueAtTime(0.001, actx.currentTime+0.25);
       o.start(actx.currentTime); o.stop(actx.currentTime+0.3);
-      setTimeout(chirp, 1500+Math.random()*7000);
+      setTimeout(chirp, 800+Math.random()*4000);
     }
-    setTimeout(chirp, 800); setTimeout(chirp, 2500); setTimeout(chirp, 5000);
+    setTimeout(chirp, 300);
+    setTimeout(chirp, 1200);
+    setTimeout(chirp, 2800);
+    setTimeout(chirp, 4200);
+    setTimeout(chirp, 6500);
   } catch(e){}
 }
 
@@ -377,7 +381,11 @@ window.addEventListener('load', () => {
   // Avvia preload video in background
   setTimeout(preloadVideos, 500);
 
-  document.addEventListener('click', startForest, { once:true });
+  // Avvia foresta al primo tocco/click in qualsiasi punto
+  const startForestOnce = () => { startForest(); };
+  document.addEventListener('touchstart', startForestOnce, { once: true, passive: true });
+  document.addEventListener('click', startForestOnce, { once: true });
+  document.addEventListener('touchend', startForestOnce, { once: true, passive: true });
   const t = document.createElement('video');
   t.src = POOL.entrata[0];
   t.oncanplay = () => crossfadeTo(POOL.entrata[0], false, ()=>loopPool(POOL.breve));
