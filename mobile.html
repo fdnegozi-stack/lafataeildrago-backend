@@ -212,8 +212,8 @@ const LANG = LINGUE.includes(_lr) ? _lr : 'it';
 const V = SERVER + '/video/';
 const POOL = {
   entrata:     [V+'entrata.mp4'],
-  breve:       [V+'attesa breve 1.mp4',V+'attesa breve 2.mp4',V+'attesa breve 3.mp4',V+'attesa breve 4.mp4',V+'attesa breve 5.mp4'],
-  lunga:       [V+'in attesa lunga 1.mp4',V+'in attesa lunga 2.mp4',V+'in attesa lunga 3.mp4',V+'in attesa lunga 4.mp4'],
+  breve:       [V+'attesa1_3.mp4',V+'attesa2_3.mp4',V+'attesa3_3.mp4'],
+  lunga:       [V+'attesa1_9.mp4',V+'attesa2_9.mp4',V+'attesa3_9.mp4',V+'attesa4_9.mp4'],
   parlato:     [V+'parlato normale 1.mp4',V+'parlato normale 2.mp4'],
   enfasi:      [V+'parlato con enfasi.mp4'],
   offesaLieve: [V+'offesa lieve.mp4'],
@@ -320,8 +320,8 @@ async function avvia() {
 
   // Aggiorna pool video con nuovo SERVER
   POOL.entrata = [SERVER+'/video/entrata.mp4'];
-  POOL.breve = [1,2,3,4,5].map(i=>SERVER+'/video/attesa breve '+i+'.mp4');
-  POOL.lunga = [1,2,3,4].map(i=>SERVER+'/video/in attesa lunga '+i+'.mp4');
+  POOL.breve = ['attesa1_3','attesa2_3','attesa3_3'].map(n=>SERVER+'/video/'+n+'.mp4');
+  POOL.lunga = ['attesa1_9','attesa2_9','attesa3_9','attesa4_9'].map(n=>SERVER+'/video/'+n+'.mp4');
   POOL.parlato = [1,2].map(i=>SERVER+'/video/parlato normale '+i+'.mp4');
   POOL.enfasi = [SERVER+'/video/parlato con enfasi.mp4'];
 
