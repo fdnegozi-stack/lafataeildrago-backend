@@ -219,6 +219,8 @@ const POOL = {
   offesaLieve: [V+'offesa lieve.mp4'],
   offesaMedia: [V+'offesa media.mp4'],
   offesaGrave: [V+'offesa grave.mp4'],
+  offesaSeNeVa: [V+'offesa e se ne va.mp4'],
+  sfondoVuoto: [V+'sfondo vuoto.mp4'],
 };
 const rand = a => a[Math.floor(Math.random()*a.length)];
 
@@ -351,10 +353,12 @@ const showText  = t => { /* testo nascosto nel mobile — solo audio */ };
 const RE_GRAVE = /cazzo|vaffanculo|troia|puttana|bastard|fuck.*you|scheiss|merde|joder|kurwa/i;
 const RE_MEDIA = /stupida|cretina|idiota|scema|deficiente|schifo|bitch|dumb|blöd/i;
 const RE_LIEVE = /robot|macchina|stupida app|non servi|boring|pathetic/i;
+let offesaCount = 0;
 function offesa(t) {
-  if (RE_GRAVE.test(t)) return 'grave';
-  if (RE_MEDIA.test(t)) return 'media';
-  if (RE_LIEVE.test(t)) return 'lieve';
+  if (RE_GRAVE.test(t)) { offesaCount++; return offesaCount >= 2 ? 'seNeVa' : 'grave'; }
+  if (RE_MEDIA.test(t)) { offesaCount++; return 'media'; }
+  if (RE_LIEVE.test(t)) { offesaCount++; return 'lieve'; }
+  offesaCount = 0; // reset se non offende
   return null;
 }
 
@@ -471,8 +475,16 @@ function startListening() {
     const off = offesa(testo);
     if (off) {
       stopLoop();
-      const pool = off==='grave'?POOL.offesaGrave : off==='media'?POOL.offesaMedia : POOL.offesaLieve;
-      crossfadeTo(rand(pool), false, ()=>loopPool(POOL.breve));
+      if (off === 'seNeVa') {
+        // Tania se ne va — sfondo vuoto per 10 secondi poi torna
+        crossfadeTo(rand(POOL.offesaSeNeVa), false, ()=>{
+          crossfadeTo(rand(POOL.sfondoVuoto), true);
+          setTimeout(()=>loopPool(POOL.breve), 10000);
+        });
+      } else {
+        const pool = off==='grave'?POOL.offesaGrave : off==='media'?POOL.offesaMedia : POOL.offesaLieve;
+        crossfadeTo(rand(pool), false, ()=>loopPool(POOL.breve));
+      }
     }
 
     storiaCon.push({ role:'user', content:testo });
