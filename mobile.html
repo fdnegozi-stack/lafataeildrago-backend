@@ -17,9 +17,9 @@
   }
   .vid-layer {
     position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: cover; transition: opacity 0.4s ease-in-out;
+    object-fit: cover; transition: opacity 0.2s linear;
   }
-  .vid-layer.hidden  { opacity: 0; }
+  .vid-layer.hidden  { opacity: 0; pointer-events: none; }
   .vid-layer.visible { opacity: 1; }
   #logoFallback {
     position: absolute; inset: 0; width: 100%; height: 100%;
@@ -89,17 +89,7 @@
   #logoTop img { width: 100%; height: 100%; object-fit: contain; }
 
   /* Status ring */
-  #statusRing {
-    position: fixed; bottom: 220px; left: 50%; transform: translateX(-50%);
-    width: 12px; height: 12px; border-radius: 50%;
-    background: #2a2a2a; border: 2px solid #444; transition: all 0.3s; z-index: 11;
-    opacity: 0; transition: opacity 1s ease;
-  }
-  #statusRing.show { opacity: 1; }
-  #statusRing.idle   { background: #d4af37; box-shadow: 0 0 6px #d4af37; animation: pulse 2s infinite; }
-  #statusRing.listen { background: #4fc3f7; box-shadow: 0 0 6px #4fc3f7; animation: pulse 0.5s infinite; }
-  #statusRing.think  { background: #ce93d8; box-shadow: 0 0 6px #ce93d8; }
-  #statusRing.speak  { background: #a5d6a7; box-shadow: 0 0 6px #a5d6a7; animation: pulse 0.3s infinite; }
+  #statusRing { display: none; } /* puntino rimosso */
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
   /* Bolla risposta */
@@ -355,10 +345,7 @@ const micBtn = document.getElementById('micBtn');
 const camInp = document.getElementById('cameraInput');
 
 const setStatus = s => { ring.className = ''; ring.classList.add('show', s); };
-const showText  = t => {
-  bubble.textContent = t;
-  t ? bubble.classList.add('visible') : bubble.classList.remove('visible');
-};
+const showText  = t => { /* testo nascosto nel mobile — solo audio */ };
 
 // ── Offese ────────────────────────────────────────────────────────
 const RE_GRAVE = /cazzo|vaffanculo|troia|puttana|bastard|fuck.*you|scheiss|merde|joder|kurwa/i;
@@ -488,7 +475,7 @@ function startListening() {
     let risposta = '';
     await fetchSSE(
       SERVER+'/api/voice-answer', { text:testo, lang:LANG, mode:'mobile', storia:storiaCon.slice(-8) },
-      t => { risposta+=t; showText(risposta); },
+      t => { risposta+=t; }, // no testo nel mobile
       () => {
         storiaCon.push({ role:'assistant', content:risposta });
         const isEnfasi = /harry potter|signore degli anelli|witcher|dungeons|esclusiv|novit/i.test(risposta);
