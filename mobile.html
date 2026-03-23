@@ -376,17 +376,24 @@ async function fetchSSE(url, body, onToken, onDone, onError) {
 
 // ── TTS + lipsync ─────────────────────────────────────────────────
 async function speak(testo, tipo='normale') {
-  fetch(SERVER+'/api/tts-lipsync', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ text:testo, lang:LANG, tipo })
-  }).then(async r => {
-    const d = await r.json();
-    if (d.ok && d.videoUrl) {
-      stopLoop();
-      crossfadeTo(SERVER+d.videoUrl, false, ()=>{ loopPool(POOL.breve); setStatus('idle'); });
-    }
-  }).catch(()=>{});
+  setStatus('speak');
 
+  // Prima prova lip-sync
+  try {
+    const lsRes = await fetch(SERVER+'/api/tts-lipsync', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text:testo, lang:LANG, tipo })
+    });
+    const lsData = await lsRes.json();
+    if (lsData.ok && lsData.videoUrl) {
+      stopLoop();
+      crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.breve); setStatus('idle'); });
+      return;
+    }
+  } catch(e) {}
+
+  // Solo audio — Tania resta in attesa
+  loopPool(POOL.breve);
   try {
     const r = await fetch(SERVER+'/api/tts', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -396,7 +403,6 @@ async function speak(testo, tipo='normale') {
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const aud = new Audio(url);
-      loopPool(POOL.breve); setStatus('speak');
       aud.play();
       aud.onended = ()=>{ URL.revokeObjectURL(url); setStatus('idle'); };
       return;
