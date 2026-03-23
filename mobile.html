@@ -212,17 +212,29 @@ const LANG = LINGUE.includes(_lr) ? _lr : 'it';
 const V = SERVER + '/video/';
 const POOL = {
   entrata:     [V+'entrata.mp4'],
-  breve:       [V+'attesa1_3.mp4',V+'attesa2_3.mp4',V+'attesa3_3.mp4'],
+  breve:       [V+'attesa1_3.mp4',V+'attesa2_3.mp4',V+'attesa1_4.mp4',V+'attesa1_5.mp4'],
   lunga:       [V+'attesa1_9.mp4',V+'attesa2_9.mp4',V+'attesa3_9.mp4',V+'attesa4_9.mp4'],
   parlato:     [V+'parlato normale 1.mp4',V+'parlato normale 2.mp4'],
   enfasi:      [V+'parlato con enfasi.mp4'],
+  medio:       [V+'attesa1_6.mp4',V+'attesa1_7.mp4',V+'attesa2_7.mp4',V+'attesa1_8.mp4'],
+  saluto:      [V+'saluto 1.mp4',V+'saluto 2.mp4'],
+  qrcode:      [V+'qrcode.mp4'],
+  sfondoVuoto: [V+'sfondo vuoto.mp4'],
   offesaLieve: [V+'offesa lieve.mp4'],
   offesaMedia: [V+'offesa media.mp4'],
   offesaGrave: [V+'offesa grave.mp4'],
   offesaSeNeVa: [V+'offesa e se ne va.mp4'],
   sfondoVuoto: [V+'sfondo vuoto.mp4'],
 };
-const rand = a => a[Math.floor(Math.random()*a.length)];
+let _lastRand = {};
+const rand = (a, key='default') => {
+  if (a.length <= 1) return a[0];
+  let idx, tries = 0;
+  do { idx = Math.floor(Math.random()*a.length); tries++; }
+  while (a[idx] === _lastRand[key] && tries < 5);
+  _lastRand[key] = a[idx];
+  return a[idx];
+};
 
 // ── Player crossfade ──────────────────────────────────────────────
 const vidA = document.getElementById('vidA');
@@ -320,7 +332,7 @@ async function avvia() {
 
   // Aggiorna pool video con nuovo SERVER
   POOL.entrata = [SERVER+'/video/entrata.mp4'];
-  POOL.breve = ['attesa1_3','attesa2_3','attesa3_3'].map(n=>SERVER+'/video/'+n+'.mp4');
+  POOL.breve = ['attesa1_3','attesa2_3','attesa1_4','attesa1_5'].map(n=>SERVER+'/video/'+n+'.mp4');
   POOL.lunga = ['attesa1_9','attesa2_9','attesa3_9','attesa4_9'].map(n=>SERVER+'/video/'+n+'.mp4');
   POOL.parlato = [1,2].map(i=>SERVER+'/video/parlato normale '+i+'.mp4');
   POOL.enfasi = [SERVER+'/video/parlato con enfasi.mp4'];
@@ -381,6 +393,7 @@ async function fetchSSE(url, body, onToken, onDone, onError) {
 // ── TTS + lipsync ─────────────────────────────────────────────────
 async function speak(testo, tipo='normale') {
   setStatus('speak');
+  loopPool(POOL.lunga); // mantieni video attivo subito
 
   // Prima prova lip-sync
   try {
@@ -391,13 +404,12 @@ async function speak(testo, tipo='normale') {
     const lsData = await lsRes.json();
     if (lsData.ok && lsData.videoUrl) {
       stopLoop();
-      crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.breve); setStatus('idle'); });
+      crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); setStatus('idle'); });
       return;
     }
   } catch(e) {}
 
-  // Solo audio — Tania resta in attesa
-  loopPool(POOL.breve);
+  // Solo audio — Tania resta in attesa con loop lunga
   try {
     const r = await fetch(SERVER+'/api/tts', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -408,11 +420,12 @@ async function speak(testo, tipo='normale') {
       const url = URL.createObjectURL(blob);
       const aud = new Audio(url);
       aud.play();
-      aud.onended = ()=>{ URL.revokeObjectURL(url); setStatus('idle'); };
+      aud.onended = ()=>{ URL.revokeObjectURL(url); setStatus('idle'); loopPool(POOL.lunga); };
       return;
     }
   } catch(e){}
   setStatus('idle');
+  loopPool(POOL.lunga);
 }
 
 // ── Camera ────────────────────────────────────────────────────────
