@@ -403,13 +403,14 @@ async function speak(testo, tipo='normale') {
     });
     const lsData = await lsRes.json();
     if (lsData.ok && lsData.videoUrl) {
+      // Lip-sync pronto — video con audio incorporato
       stopLoop();
       crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); setStatus('idle'); });
       return;
     }
   } catch(e) {}
 
-  // Solo audio — Tania resta in attesa con loop lunga
+  // Solo audio — usa audioUrl dalla risposta lipsync se disponibile
   try {
     const r = await fetch(SERVER+'/api/tts', {
       method:'POST', headers:{'Content-Type':'application/json'},
