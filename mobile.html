@@ -303,15 +303,6 @@ function _playNext(pool) {
       });
     }
     activeSlot = activeSlot==='A' ? 'B' : 'A';
-    // Precarica il prossimo a metà del video corrente
-    next.ontimeupdate = () => {
-      if (next.duration && next.currentTime >= next.duration * 0.5) {
-        next.ontimeupdate = null;
-        const upcoming = activeSlot==='A' ? vidB : vidA;
-        const nextSrc = rand(pool);
-        upcoming.src = nextSrc; upcoming.muted = true; upcoming.load();
-      }
-    };
     next.onended = () => { if (loopOn && currentPool === pool) _playNext(pool); };
   };
 }
