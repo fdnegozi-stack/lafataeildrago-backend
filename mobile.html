@@ -294,17 +294,24 @@ function _playNext(pool) {
   next.oncanplay = () => {
     next.oncanplay = null;
     next.play().catch(()=>{});
-    // Il prev rimane visibile finché next non è partito
     next.classList.remove('hidden'); next.classList.add('visible');
     logoF.classList.add('hidden');
     if (activeSlot !== null) {
-      // Nascondi prev solo dopo che next sta girando
       requestAnimationFrame(() => {
         prev.classList.remove('visible'); prev.classList.add('hidden');
         setTimeout(() => { prev.pause(); prev.src = ''; }, 1000);
       });
     }
     activeSlot = activeSlot==='A' ? 'B' : 'A';
+    // Precarica il prossimo a metà del video corrente
+    next.ontimeupdate = () => {
+      if (next.duration && next.currentTime >= next.duration * 0.5) {
+        next.ontimeupdate = null;
+        const upcoming = activeSlot==='A' ? vidB : vidA;
+        const nextSrc = rand(pool);
+        upcoming.src = nextSrc; upcoming.muted = true; upcoming.load();
+      }
+    };
     next.onended = () => { if (loopOn && currentPool === pool) _playNext(pool); };
   };
 }
