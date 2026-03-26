@@ -527,18 +527,28 @@ camInp.addEventListener('change', async () => {
       prevPrezzo.textContent = top.prezzo ? `€ ${parseFloat(top.prezzo).toFixed(2)}` : '';
       prevRes.textContent = `sim: ${top.similarity != null ? (top.similarity*100).toFixed(0)+'%' : '?'}`;
       setStatus('speak');
-      // Ottieni risposta dalla cache/Ollama
-      const r2 = await fetch(SERVER+'/api/avatar-response', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ prodotto:top, lingua:LANG, mode:'mobile' })
-      });
-      const t2 = await r2.text();
-      let full = '';
-      for (const line of t2.split('\n')) {
-        if (!line.startsWith('data: ')) continue;
-        try { const j=JSON.parse(line.slice(6)); if(j.token) full+=j.token; } catch {}
+      console.log('📷 Chiamo avatar-response su:', SERVER, 'sottocategoria:', top.sottocategoria || top.categoria);
+      try {
+        const ctrl3 = new AbortController();
+        const t3 = setTimeout(() => ctrl3.abort(), 15000);
+        const r2 = await fetch(SERVER+'/api/avatar-response', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ prodotto:top, lingua:LANG, mode:'mobile' }),
+          signal: ctrl3.signal
+        });
+        clearTimeout(t3);
+        const t2 = await r2.text();
+        let full = '';
+        for (const line of t2.split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          try { const j=JSON.parse(line.slice(6)); if(j.token) full+=j.token; } catch {}
+        }
+        console.log('📷 Risposta avatar:', full.substring(0,60));
+        if (full.trim()) await speak(full.trim());
+      } catch(e) {
+        console.log('📷 avatar-response errore:', e.message);
+        prevRes.textContent = 'Errore risposta: ' + e.message;
       }
-      if (full.trim()) await speak(full.trim());
     } else {
       const sim = top ? ` (${(top.similarity*100).toFixed(0)}%)` : '';
       console.log('📷 Non riconosciuto' + sim);
