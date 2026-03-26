@@ -495,6 +495,7 @@ camInp.addEventListener('change', async () => {
     const res = await fetch(SERVER+'/api/search', { method:'POST', body:fd });
     prevRes.textContent = '';
     const data = await res.json();
+    console.log('📷 CLIP risposta:', JSON.stringify(data).substring(0, 200));
     const lista = data.results || data.risultati || [];
     const SOGLIA_SIMILARITY = 0.22; // sotto questa soglia = non riconosciuto
     const top = lista.length > 0 ? lista[0] : null;
