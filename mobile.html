@@ -513,15 +513,15 @@ camInp.addEventListener('change', async () => {
     const data = await res.json();
     console.log('📷 CLIP risposta:', JSON.stringify(data).substring(0, 200));
     const lista = data.results || data.risultati || [];
-    const SOGLIA_SIMILARITY = 0.22; // sotto questa soglia = non riconosciuto
+    const SOGLIA_SIMILARITY = 0.30; // sotto questa soglia = non riconosciuto
     const top = lista.length > 0 ? lista[0] : null;
     const riconosciuto = top && (top.similarity == null || top.similarity >= SOGLIA_SIMILARITY);
 
     if (riconosciuto) {
       top.nome = top.nome || top.descrizione || 'Prodotto';
-      // Mostra nome e prezzo del prodotto specifico
       prevNome.textContent = top.nome;
       prevPrezzo.textContent = top.prezzo ? `€ ${parseFloat(top.prezzo).toFixed(2)}` : '';
+      prevRes.textContent = `sim: ${top.similarity != null ? (top.similarity*100).toFixed(0)+'%' : '?'}`;
       setStatus('speak');
       await fetchSSE(SERVER+'/api/avatar-response', { prodotto:top, lingua:LANG, mode:'mobile' },
         t=>{ /* streaming ignorato — parla direttamente */ },
@@ -543,7 +543,7 @@ camInp.addEventListener('change', async () => {
     } else {
       const sim = top ? ` (${(top.similarity*100).toFixed(0)}%)` : '';
       console.log('📷 Non riconosciuto' + sim);
-      prevRes.textContent = top ? `Similarity: ${(top.similarity*100).toFixed(0)}% — sotto soglia` : '';
+      prevRes.textContent = top ? `sim: ${(top.similarity*100).toFixed(0)}% — sotto soglia (${(SOGLIA_SIMILARITY*100).toFixed(0)}%)` : 'Nessun risultato';
       const MSG = {
         it: "L'articolo che hai fotografato non è in vendita... o forse... non l'ho riconosciuto?",
         en: "The item you photographed isn't in stock... or maybe... I didn't recognize it?",
