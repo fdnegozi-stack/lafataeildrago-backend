@@ -356,7 +356,27 @@ document.addEventListener('visibilitychange', () => {
 
 // ── Avvio al tocco ────────────────────────────────────────────────
 // Legge URL tunnel aggiornato da GitHub Pages
+// Nome mDNS del PC corrente — aggiornare se si cambia PC
+const LOCAL_HOSTNAME = 'PCstudio.local';
+const LOCAL_PORT = '3000';
+
 async function caricaTunnelUrl() {
+  // Prima prova IP locale via mDNS — molto più veloce del tunnel
+  try {
+    const localUrl = 'http://' + LOCAL_HOSTNAME + ':' + LOCAL_PORT;
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 800);
+    const r = await fetch(localUrl + '/api/ping', { signal: ctrl.signal });
+    clearTimeout(timeout);
+    if (r.ok) {
+      SERVER = localUrl;
+      console.log('✓ Rete locale diretta:', SERVER);
+      return;
+    }
+  } catch(e) {
+    console.log('Rete locale non disponibile, uso tunnel...');
+  }
+  // Fallback: tunnel Cloudflare
   try {
     const base = 'https://fdnegozi-stack.github.io/lafataeildrago-backend/';
     const r = await fetch(base + 'tunnel-url.json?t=' + Date.now());
