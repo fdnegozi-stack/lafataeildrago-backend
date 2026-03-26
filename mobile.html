@@ -226,6 +226,19 @@ const POOL = {
   offesaSeNeVa: [V+'offesa e se ne va.mp4'],
 };
 let _lastRand = {};
+
+// ── Cache video in memoria — evita ri-download ────────────────
+const _videoCache = {};
+async function _fetchVideo(src) {
+  if (_videoCache[src]) return _videoCache[src];
+  try {
+    const resp = await fetch(src);
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    _videoCache[src] = url;
+    return url;
+  } catch(e) { return src; } // fallback all'URL originale
+}
 const rand = (a, key='default') => {
   if (a.length <= 1) return a[0];
   let idx, tries = 0;
@@ -279,8 +292,11 @@ function _preloadNext(pool) {
   const src = rand(pool, 'preload');
   if (src === preloadedSrc) return;
   preloadedSrc = src;
-  vidPreloadEl.src = src;
-  vidPreloadEl.load();
+  // Scarica in background e metti in cache
+  _fetchVideo(src).then(cachedSrc => {
+    vidPreloadEl.src = cachedSrc;
+    vidPreloadEl.load();
+  });
 }
 
 function _playNext(pool) {
@@ -289,8 +305,10 @@ function _playNext(pool) {
   const prev = activeSlot==='A' ? vidA  : vidB;
 
   // Usa il video precaricato se disponibile
-  const src = (preloadedSrc && vidPreloadEl.readyState >= 3) ? preloadedSrc : rand(pool);
+  const rawSrc = (preloadedSrc && vidPreloadEl.readyState >= 3) ? preloadedSrc : rand(pool);
   preloadedSrc = null;
+  // Usa blob URL dalla cache se disponibile
+  const src = _videoCache[rawSrc] || rawSrc;
 
   next.src = src; next.loop = false; next.muted = true; next.preload = 'auto'; next.load();
 
@@ -303,13 +321,8 @@ function _playNext(pool) {
       setTimeout(()=>{ prev.pause(); prev.src=''; }, 200);
     }
     activeSlot = activeSlot==='A' ? 'B' : 'A';
-    // Precarica il prossimo quando mancano ~3s alla fine
-    next.ontimeupdate = () => {
-      if (next.duration && next.currentTime >= next.duration - 3) {
-        next.ontimeupdate = null;
-        if (loopOn && currentPool === pool) _preloadNext(pool);
-      }
-    };
+    // Precarica subito il prossimo appena inizia questo
+    setTimeout(() => { if (loopOn && currentPool === pool) _preloadNext(pool); }, 1000);
     next.onended = () => { if (loopOn && currentPool === pool) _playNext(pool); };
   };
 
@@ -373,6 +386,12 @@ async function avvia() {
   document.getElementById('logoTop').classList.add('show');
   document.getElementById('statusRing').classList.add('show');
   setStatus('idle');
+
+  // Precarica in background tutti i video di attesa
+  setTimeout(() => {
+    [...POOL.lunga, ...POOL.breve].forEach(src => _fetchVideo(src));
+    console.log('📦 Precaricamento video avviato');
+  }, 2000);
 
   // Avvia video entrata
   crossfadeTo(POOL.entrata[0], false, ()=>loopPool(POOL.lunga));
