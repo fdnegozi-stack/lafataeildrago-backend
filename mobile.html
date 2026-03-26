@@ -285,53 +285,28 @@ function loopPool(pool) {
   _playNext(pool);
 }
 
-let preloadedSrc = null;
-const vidPreloadEl = document.getElementById('vidPreload');
-
-function _preloadNext(pool) {
-  const src = rand(pool, 'preload');
-  if (src === preloadedSrc) return;
-  preloadedSrc = src;
-  // Scarica in background e metti in cache
-  _fetchVideo(src).then(cachedSrc => {
-    vidPreloadEl.src = cachedSrc;
-    vidPreloadEl.load();
-  });
-}
-
 function _playNext(pool) {
   if (!loopOn) return;
   const next = activeSlot==='A' ? vidB : vidA;
   const prev = activeSlot==='A' ? vidA  : vidB;
-
-  // Usa il video precaricato se disponibile
-  const rawSrc = (preloadedSrc && vidPreloadEl.readyState >= 3) ? preloadedSrc : rand(pool);
-  preloadedSrc = null;
-  // Usa blob URL dalla cache se disponibile
-  const src = _videoCache[rawSrc] || rawSrc;
-
-  next.src = src; next.loop = false; next.muted = true; next.preload = 'auto'; next.load();
-
-  const doSwitch = () => {
+  const src = rand(pool);
+  next.src = src; next.loop = false; next.muted = true; next.load();
+  next.oncanplay = () => {
+    next.oncanplay = null;
     next.play().catch(()=>{});
+    // Il prev rimane visibile finché next non è partito
     next.classList.remove('hidden'); next.classList.add('visible');
     logoF.classList.add('hidden');
     if (activeSlot !== null) {
-      prev.classList.remove('visible'); prev.classList.add('hidden');
-      setTimeout(()=>{ prev.pause(); prev.src=''; }, 200);
+      // Nascondi prev solo dopo che next sta girando
+      requestAnimationFrame(() => {
+        prev.classList.remove('visible'); prev.classList.add('hidden');
+        setTimeout(() => { prev.pause(); prev.src = ''; }, 1000);
+      });
     }
     activeSlot = activeSlot==='A' ? 'B' : 'A';
-    // Precarica subito il prossimo appena inizia questo
-    setTimeout(() => { if (loopOn && currentPool === pool) _preloadNext(pool); }, 1000);
     next.onended = () => { if (loopOn && currentPool === pool) _playNext(pool); };
   };
-
-  if (next.readyState >= 3) {
-    doSwitch();
-  } else {
-    next.oncanplaythrough = () => { next.oncanplaythrough = null; doSwitch(); };
-    next.oncanplay = () => { next.oncanplay = null; if (next.readyState >= 2) doSwitch(); };
-  }
 }
 function stopLoop() { loopOn = false; }
 
@@ -356,27 +331,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ── Avvio al tocco ────────────────────────────────────────────────
 // Legge URL tunnel aggiornato da GitHub Pages
-// Nome mDNS del PC corrente — aggiornare se si cambia PC
-const LOCAL_HOSTNAME = 'PCstudio.local';
-const LOCAL_PORT = '3000';
-
 async function caricaTunnelUrl() {
-  // Prima prova IP locale via mDNS — molto più veloce del tunnel
-  try {
-    const localUrl = 'http://' + LOCAL_HOSTNAME + ':' + LOCAL_PORT;
-    const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 800);
-    const r = await fetch(localUrl + '/api/ping', { signal: ctrl.signal });
-    clearTimeout(timeout);
-    if (r.ok) {
-      SERVER = localUrl;
-      console.log('✓ Rete locale diretta:', SERVER);
-      return;
-    }
-  } catch(e) {
-    console.log('Rete locale non disponibile, uso tunnel...');
-  }
-  // Fallback: tunnel Cloudflare
   try {
     const base = 'https://fdnegozi-stack.github.io/lafataeildrago-backend/';
     const r = await fetch(base + 'tunnel-url.json?t=' + Date.now());
