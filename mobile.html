@@ -474,22 +474,27 @@ camInp.addEventListener('change', async () => {
   showText('Analisi in corso...');
   try {
     const fd = new FormData(); fd.append('image', file);
+    prevRes.textContent = '🔍 Invio al server...';
     const res = await fetch(SERVER+'/api/search', { method:'POST', body:fd });
+    prevRes.textContent = '🔍 Analisi CLIP...';
     const data = await res.json();
-    if (data.results?.length > 0) {
-      const top = data.results[0];
+    const lista = data.results || data.risultati || [];
+    if (lista.length > 0) {
+      const top = lista[0];
+      // Normalizza campo nome (descrizione o nome)
+      top.nome = top.nome || top.descrizione || 'Prodotto';
       setStatus('speak'); showText('');
       await fetchSSE(SERVER+'/api/avatar-response', { prodotto:top, lingua:LANG, mode:'mobile' },
         t=>{ bubble.textContent+=t; bubble.classList.add('visible'); },
         ()=>{ speak(bubble.textContent); },
         ()=>{ showText('Ho trovato: '+top.nome); }
       );
-      prevRes.textContent=`${top.nome} — €${top.prezzo}`;
+      prevRes.textContent=`${top.nome} — €${top.prezzo || ''}`;
     } else {
       showText('Non ho riconosciuto il prodotto. Riprova.');
-      prevRes.textContent='';
+      prevRes.textContent = data.error || '';
     }
-  } catch(e) { showText('Errore. Riprova.'); }
+  } catch(e) { prevRes.textContent = 'Errore: ' + e.message; showText('Errore. Riprova.'); }
   isBusy=false; setStatus('idle'); camInp.value='';
 });
 
