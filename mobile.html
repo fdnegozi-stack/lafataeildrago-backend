@@ -447,24 +447,28 @@ function randParlato() {
 
 async function speak(testo, tipo='normale') {
   setStatus('speak');
-  // Mostra video parlato come placeholder mentre aspetta il lip-sync
   stopLoop();
   crossfadeTo(randParlato(), true);
 
-  // Prima prova lip-sync
+  // Prima prova lip-sync con timeout 10s
   try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 5000);
     const lsRes = await fetch(SERVER+'/api/tts-lipsync', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ text:testo, lang:LANG, tipo })
+      body: JSON.stringify({ text:testo, lang:LANG, tipo }),
+      signal: ctrl.signal
     });
+    clearTimeout(timeout);
     const lsData = await lsRes.json();
     if (lsData.ok && lsData.videoUrl) {
-      // Lip-sync pronto — video con audio incorporato
       stopLoop();
       crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); setStatus('idle'); });
       return;
     }
-  } catch(e) {}
+  } catch(e) {
+    // Timeout o errore — cade su TTS audio
+  }
 
   // Solo audio — usa audioUrl dalla risposta lipsync se disponibile
   try {
@@ -523,12 +527,7 @@ camInp.addEventListener('change', async () => {
       prevPrezzo.textContent = top.prezzo ? `€ ${parseFloat(top.prezzo).toFixed(2)}` : '';
       prevRes.textContent = `sim: ${top.similarity != null ? (top.similarity*100).toFixed(0)+'%' : '?'}`;
       setStatus('speak');
-      await fetchSSE(SERVER+'/api/avatar-response', { prodotto:top, lingua:LANG, mode:'mobile' },
-        t=>{ /* streaming ignorato — parla direttamente */ },
-        ()=>{},
-        ()=>{}
-      );
-      // Ottieni testo completo e parla
+      // Ottieni risposta dalla cache/Ollama
       const r2 = await fetch(SERVER+'/api/avatar-response', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ prodotto:top, lingua:LANG, mode:'mobile' })
@@ -539,7 +538,7 @@ camInp.addEventListener('change', async () => {
         if (!line.startsWith('data: ')) continue;
         try { const j=JSON.parse(line.slice(6)); if(j.token) full+=j.token; } catch {}
       }
-      if (full.trim()) speak(full.trim());
+      if (full.trim()) await speak(full.trim());
     } else {
       const sim = top ? ` (${(top.similarity*100).toFixed(0)}%)` : '';
       console.log('📷 Non riconosciuto' + sim);
@@ -549,10 +548,11 @@ camInp.addEventListener('change', async () => {
         en: "The item you photographed isn't in stock... or maybe... I didn't recognize it?",
         de: "Den fotografierten Artikel haben wir nicht... oder ich habe ihn nicht erkannt?",
       };
-      speak(MSG[LANG] || MSG['en']);
+      await speak(MSG[LANG] || MSG['en']);
     }
   } catch(e) { prevRes.textContent = 'Errore: ' + e.message; }
   isBusy=false; setStatus('idle'); camInp.value='';
+  loopPool(POOL.lunga);
 });
 
 // ── Microfono ─────────────────────────────────────────────────────
