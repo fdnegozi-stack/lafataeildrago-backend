@@ -513,7 +513,7 @@ camInp.addEventListener('change', async () => {
     const data = await res.json();
     console.log('📷 CLIP risposta:', JSON.stringify(data).substring(0, 200));
     const lista = data.results || data.risultati || [];
-    const SOGLIA_SIMILARITY = 0.50; // sotto questa soglia = non riconosciuto
+    const SOGLIA_SIMILARITY = 0.70; // sotto questa soglia = non riconosciuto
     const top = lista.length > 0 ? lista[0] : null;
     const riconosciuto = top && (top.similarity == null || top.similarity >= SOGLIA_SIMILARITY);
 
