@@ -548,7 +548,22 @@ camInp.addEventListener('change', async () => {
         en: "The item you photographed isn't in stock... or maybe... I didn't recognize it?",
         de: "Den fotografierten Artikel haben wir nicht... oder ich habe ihn nicht erkannt?",
       };
-      await speak(MSG[LANG] || MSG['en']);
+      const msgTesto = MSG[LANG] || MSG['en'];
+      // Usa TTS diretto — niente lipsync per risposta non riconosciuto
+      try {
+        stopLoop(); crossfadeTo(randParlato(), true);
+        const r = await fetch(SERVER+'/api/tts', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ text: msgTesto, lang: LANG })
+        });
+        if (r.ok) {
+          const blob = await r.blob();
+          const url = URL.createObjectURL(blob);
+          const aud = new Audio(url);
+          aud.play();
+          await new Promise(res => { aud.onended = () => { URL.revokeObjectURL(url); res(); }; });
+        }
+      } catch(e) { console.log('TTS errore:', e.message); }
     }
   } catch(e) { prevRes.textContent = 'Errore: ' + e.message; }
   isBusy=false; setStatus('idle'); camInp.value='';
