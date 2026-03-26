@@ -549,25 +549,33 @@ camInp.addEventListener('change', async () => {
         de: "Den fotografierten Artikel haben wir nicht... oder ich habe ihn nicht erkannt?",
       };
       const msgTesto = MSG[LANG] || MSG['en'];
-      // Usa TTS diretto — niente lipsync per risposta non riconosciuto
+      stopLoop(); crossfadeTo(randParlato(), true);
       try {
-        stopLoop(); crossfadeTo(randParlato(), true);
+        const ctrl2 = new AbortController();
+        const t2 = setTimeout(() => ctrl2.abort(), 8000);
         const r = await fetch(SERVER+'/api/tts', {
           method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ text: msgTesto, lang: LANG })
+          body: JSON.stringify({ text: msgTesto, lang: LANG }),
+          signal: ctrl2.signal
         });
+        clearTimeout(t2);
         if (r.ok) {
           const blob = await r.blob();
           const url = URL.createObjectURL(blob);
           const aud = new Audio(url);
           aud.play();
-          await new Promise(res => { aud.onended = () => { URL.revokeObjectURL(url); res(); }; });
+          await new Promise(res => {
+            aud.onended = () => { URL.revokeObjectURL(url); res(); };
+            setTimeout(res, 10000); // fallback se onended non scatta
+          });
         }
-      } catch(e) { console.log('TTS errore:', e.message); }
+      } catch(e) { console.log('TTS non riconosciuto errore:', e.message); }
     }
   } catch(e) { prevRes.textContent = 'Errore: ' + e.message; }
-  isBusy=false; setStatus('idle'); camInp.value='';
-  loopPool(POOL.lunga);
+  finally {
+    isBusy=false; setStatus('idle'); camInp.value='';
+    loopPool(POOL.lunga);
+  }
 });
 
 // ── Microfono ─────────────────────────────────────────────────────
