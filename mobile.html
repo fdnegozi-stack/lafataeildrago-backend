@@ -135,10 +135,13 @@
   }
 
   /* Preview foto */
-  #photoPreview { display: none; position: fixed; bottom: 200px; left: 50%; transform: translateX(-50%); width: 200px; z-index: 15; border-radius: 10px; overflow: hidden; border: 1px solid rgba(212,175,55,0.3); }
+  #photoPreview { display: none; position: fixed; bottom: 200px; left: 50%; transform: translateX(-50%); width: 220px; z-index: 15; border-radius: 10px; overflow: hidden; border: 1px solid rgba(212,175,55,0.4); background: rgba(10,8,0,0.92); }
   #photoPreview.show { display: block; }
   #photoPreview img { width: 100%; display: block; }
-  #photoResult { padding: 8px; background: rgba(10,8,0,0.9); font-size: 0.78rem; color: #c8b060; text-align: center; }
+  #photoResult { padding: 6px 10px; font-size: 0.75rem; color: #c8b060; text-align: center; line-height: 1.4; }
+  #photoNome { font-size: 0.82rem; color: #f0d080; font-weight: bold; padding: 6px 10px 0; text-align: center; }
+  #photoPrezzo { font-size: 0.9rem; color: #ffd700; font-weight: bold; padding: 2px 10px 6px; text-align: center; }
+  #photoClose { position: absolute; top: 4px; right: 6px; color: #c8b060; font-size: 1.1rem; cursor: pointer; z-index: 16; }
 
   #cameraInput { display: none; }
 </style>
@@ -200,7 +203,13 @@
 </div>
 
 <input type="file" id="cameraInput" accept="image/*" capture="environment">
-<div id="photoPreview"><img id="photoImg" src="" alt=""/><div id="photoResult"></div></div>
+<div id="photoPreview">
+  <span id="photoClose" onclick="chiudiPreview()">✕</span>
+  <img id="photoImg" src="" alt=""/>
+  <div id="photoNome"></div>
+  <div id="photoPrezzo"></div>
+  <div id="photoResult"></div>
+</div>
 
 <script>
 // ── Config ───────────────────────────────────────────────────────
@@ -462,45 +471,70 @@ async function speak(testo, tipo='normale') {
 
 // ── Camera ────────────────────────────────────────────────────────
 function openCamera() { if (!isBusy) camInp.click(); }
+
+function chiudiPreview() {
+  document.getElementById('photoPreview').classList.remove('show');
+}
+
 camInp.addEventListener('change', async () => {
   const file = camInp.files[0]; if (!file) return;
   isBusy=true; setStatus('think'); loopPool(POOL.lunga);
-  const prevDiv = document.getElementById('photoPreview');
-  const prevImg = document.getElementById('photoImg');
-  const prevRes = document.getElementById('photoResult');
+  const prevDiv  = document.getElementById('photoPreview');
+  const prevImg  = document.getElementById('photoImg');
+  const prevRes  = document.getElementById('photoResult');
+  const prevNome = document.getElementById('photoNome');
+  const prevPrezzo = document.getElementById('photoPrezzo');
   prevImg.src = URL.createObjectURL(file);
+  prevNome.textContent = '';
+  prevPrezzo.textContent = '';
   prevDiv.classList.add('show');
-  prevRes.textContent='🔍 Sto cercando...';
-  showText('Analisi in corso...');
+  prevRes.textContent = '🔍 Invio al server...';
   try {
     const fd = new FormData(); fd.append('image', file);
-    prevRes.textContent = '🔍 Invio al server...';
-    const res = await fetch(SERVER+'/api/search', { method:'POST', body:fd });
     prevRes.textContent = '🔍 Analisi CLIP...';
+    const res = await fetch(SERVER+'/api/search', { method:'POST', body:fd });
+    prevRes.textContent = '';
     const data = await res.json();
     const lista = data.results || data.risultati || [];
-    if (lista.length > 0) {
-      const top = lista[0];
+    const SOGLIA_SIMILARITY = 0.22; // sotto questa soglia = non riconosciuto
+    const top = lista.length > 0 ? lista[0] : null;
+    const riconosciuto = top && (top.similarity == null || top.similarity >= SOGLIA_SIMILARITY);
+
+    if (riconosciuto) {
       top.nome = top.nome || top.descrizione || 'Prodotto';
-      setStatus('speak'); showText('');
+      // Mostra nome e prezzo del prodotto specifico
+      prevNome.textContent = top.nome;
+      prevPrezzo.textContent = top.prezzo ? `€ ${parseFloat(top.prezzo).toFixed(2)}` : '';
+      setStatus('speak');
       await fetchSSE(SERVER+'/api/avatar-response', { prodotto:top, lingua:LANG, mode:'mobile' },
-        t=>{ bubble.textContent+=t; bubble.classList.add('visible'); },
-        ()=>{ speak(bubble.textContent); },
-        ()=>{ showText('Ho trovato: '+top.nome); }
+        t=>{ /* streaming ignorato — parla direttamente */ },
+        ()=>{},
+        ()=>{}
       );
-      prevRes.textContent=`${top.nome} — €${top.prezzo || ''}`;
+      // Ottieni testo completo e parla
+      const r2 = await fetch(SERVER+'/api/avatar-response', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ prodotto:top, lingua:LANG, mode:'mobile' })
+      });
+      const t2 = await r2.text();
+      let full = '';
+      for (const line of t2.split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        try { const j=JSON.parse(line.slice(6)); if(j.token) full+=j.token; } catch {}
+      }
+      if (full.trim()) speak(full.trim());
     } else {
-      // Nessun risultato o errore — Tania risponde
+      const sim = top ? ` (${(top.similarity*100).toFixed(0)}%)` : '';
+      console.log('📷 Non riconosciuto' + sim);
+      prevRes.textContent = top ? `Similarity: ${(top.similarity*100).toFixed(0)}% — sotto soglia` : '';
       const MSG = {
         it: "L'articolo che hai fotografato non è in vendita... o forse... non l'ho riconosciuto?",
         en: "The item you photographed isn't in stock... or maybe... I didn't recognize it?",
-        de: "Der fotografierte Artikel ist nicht vorrätig... oder... ich habe ihn nicht erkannt?",
+        de: "Den fotografierten Artikel haben wir nicht... oder ich habe ihn nicht erkannt?",
       };
-      const msg = MSG[LANG] || MSG['en'];
-      prevRes.textContent = data.error || '';
-      speak(msg);
+      speak(MSG[LANG] || MSG['en']);
     }
-  } catch(e) { prevRes.textContent = 'Errore: ' + e.message; showText('Errore. Riprova.'); }
+  } catch(e) { prevRes.textContent = 'Errore: ' + e.message; }
   isBusy=false; setStatus('idle'); camInp.value='';
 });
 
