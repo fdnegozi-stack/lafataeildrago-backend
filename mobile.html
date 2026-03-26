@@ -481,7 +481,6 @@ camInp.addEventListener('change', async () => {
     const lista = data.results || data.risultati || [];
     if (lista.length > 0) {
       const top = lista[0];
-      // Normalizza campo nome (descrizione o nome)
       top.nome = top.nome || top.descrizione || 'Prodotto';
       setStatus('speak'); showText('');
       await fetchSSE(SERVER+'/api/avatar-response', { prodotto:top, lingua:LANG, mode:'mobile' },
@@ -491,8 +490,15 @@ camInp.addEventListener('change', async () => {
       );
       prevRes.textContent=`${top.nome} — €${top.prezzo || ''}`;
     } else {
-      showText('Non ho riconosciuto il prodotto. Riprova.');
+      // Nessun risultato o errore — Tania risponde
+      const MSG = {
+        it: "L'articolo che hai fotografato non è in vendita... o forse... non l'ho riconosciuto?",
+        en: "The item you photographed isn't in stock... or maybe... I didn't recognize it?",
+        de: "Der fotografierte Artikel ist nicht vorrätig... oder... ich habe ihn nicht erkannt?",
+      };
+      const msg = MSG[LANG] || MSG['en'];
       prevRes.textContent = data.error || '';
+      speak(msg);
     }
   } catch(e) { prevRes.textContent = 'Errore: ' + e.message; showText('Errore. Riprova.'); }
   isBusy=false; setStatus('idle'); camInp.value='';
