@@ -450,7 +450,7 @@ async function speak(testo, tipo='normale') {
   stopLoop();
   crossfadeTo(randParlato(), true);
 
-  // Prima prova lip-sync con timeout 10s
+  // Prima prova lip-sync con timeout 5s
   try {
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 5000);
@@ -462,15 +462,14 @@ async function speak(testo, tipo='normale') {
     clearTimeout(timeout);
     const lsData = await lsRes.json();
     if (lsData.ok && lsData.videoUrl) {
-      stopLoop();
-      crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); setStatus('idle'); });
+      await new Promise(resolve => {
+        crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); setStatus('idle'); resolve(); });
+      });
       return;
     }
-  } catch(e) {
-    // Timeout o errore — cade su TTS audio
-  }
+  } catch(e) {}
 
-  // Solo audio — usa audioUrl dalla risposta lipsync se disponibile
+  // Solo audio TTS
   try {
     const r = await fetch(SERVER+'/api/tts', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -480,8 +479,12 @@ async function speak(testo, tipo='normale') {
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const aud = new Audio(url);
-      aud.play();
-      aud.onended = ()=>{ URL.revokeObjectURL(url); setStatus('idle'); loopPool(POOL.lunga); };
+      await new Promise(resolve => {
+        aud.onended = ()=>{ URL.revokeObjectURL(url); resolve(); };
+        setTimeout(resolve, 30000); // fallback 30s
+        aud.play();
+      });
+      setStatus('idle'); loopPool(POOL.lunga);
       return;
     }
   } catch(e){}
