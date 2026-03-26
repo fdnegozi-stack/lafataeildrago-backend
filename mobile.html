@@ -161,6 +161,7 @@
 <div id="avatarFrame">
   <video class="vid-layer hidden" id="vidA" playsinline muted></video>
   <video class="vid-layer hidden" id="vidB" playsinline muted></video>
+  <video id="vidPreload" playsinline muted preload="auto" style="display:none"></video>
   <img id="logoFallback" src="logo.png" alt="Tania" style="object-fit:contain;padding:20%;"/>
 </div>
 
@@ -271,22 +272,53 @@ function loopPool(pool) {
   _playNext(pool);
 }
 
+let preloadedSrc = null;
+const vidPreloadEl = document.getElementById('vidPreload');
+
+function _preloadNext(pool) {
+  const src = rand(pool, 'preload');
+  if (src === preloadedSrc) return;
+  preloadedSrc = src;
+  vidPreloadEl.src = src;
+  vidPreloadEl.load();
+}
+
 function _playNext(pool) {
   if (!loopOn) return;
   const next = activeSlot==='A' ? vidB : vidA;
   const prev = activeSlot==='A' ? vidA  : vidB;
-  next.src = rand(pool); next.loop = false; next.muted = true; next.load();
-  next.oncanplay = () => {
+
+  // Usa il video precaricato se disponibile
+  const src = (preloadedSrc && vidPreloadEl.readyState >= 3) ? preloadedSrc : rand(pool);
+  preloadedSrc = null;
+
+  next.src = src; next.loop = false; next.muted = true; next.preload = 'auto'; next.load();
+
+  const doSwitch = () => {
     next.play().catch(()=>{});
     next.classList.remove('hidden'); next.classList.add('visible');
     logoF.classList.add('hidden');
     if (activeSlot !== null) {
       prev.classList.remove('visible'); prev.classList.add('hidden');
-      setTimeout(()=>{ prev.pause(); prev.src=''; }, 500);
+      setTimeout(()=>{ prev.pause(); prev.src=''; }, 200);
     }
     activeSlot = activeSlot==='A' ? 'B' : 'A';
+    // Precarica il prossimo quando mancano ~3s alla fine
+    next.ontimeupdate = () => {
+      if (next.duration && next.currentTime >= next.duration - 3) {
+        next.ontimeupdate = null;
+        if (loopOn && currentPool === pool) _preloadNext(pool);
+      }
+    };
     next.onended = () => { if (loopOn && currentPool === pool) _playNext(pool); };
   };
+
+  if (next.readyState >= 3) {
+    doSwitch();
+  } else {
+    next.oncanplaythrough = () => { next.oncanplaythrough = null; doSwitch(); };
+    next.oncanplay = () => { next.oncanplay = null; if (next.readyState >= 2) doSwitch(); };
+  }
 }
 function stopLoop() { loopOn = false; }
 
