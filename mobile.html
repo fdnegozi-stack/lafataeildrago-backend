@@ -448,7 +448,9 @@ function randParlato() {
 async function speak(testo, tipo='normale') {
   setStatus('speak');
   stopLoop();
-  crossfadeTo(randParlato(), true);
+  // Mostra video parlato solo se tipo='normale' (risposta vocale)
+  // Per le foto (tipo='foto') resta sui video di attesa
+  if (tipo !== 'foto') crossfadeTo(randParlato(), true);
 
   // Prima prova lip-sync con timeout 5s
   try {
@@ -479,12 +481,14 @@ async function speak(testo, tipo='normale') {
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const aud = new Audio(url);
+      // Torna ai video di attesa — niente video parlato senza audio sincronizzato
+      loopPool(POOL.lunga);
       await new Promise(resolve => {
         aud.onended = ()=>{ URL.revokeObjectURL(url); resolve(); };
-        setTimeout(resolve, 30000); // fallback 30s
+        setTimeout(resolve, 30000);
         aud.play();
       });
-      setStatus('idle'); loopPool(POOL.lunga);
+      setStatus('idle');
       return;
     }
   } catch(e){}
@@ -547,7 +551,7 @@ camInp.addEventListener('change', async () => {
           try { const j=JSON.parse(line.slice(6)); if(j.token) full+=j.token; } catch {}
         }
         console.log('📷 Risposta avatar:', full.substring(0,60));
-        if (full.trim()) await speak(full.trim());
+        if (full.trim()) await speak(full.trim(), 'foto');
       } catch(e) {
         console.log('📷 avatar-response errore:', e.message);
         prevRes.textContent = 'Errore risposta: ' + e.message;
