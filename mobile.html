@@ -448,7 +448,7 @@ function randParlato() {
 async function speak(testo, tipo='normale') {
   setStatus('speak');
   if (tipo === 'foto') {
-    loopPool(POOL.lunga);
+    loopPool(POOL.lunga); // resta su video di attesa
     try {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 25000);
@@ -463,16 +463,15 @@ async function speak(testo, tipo='normale') {
       if (r.ok) {
         const blob = await r.blob();
         console.log('🔊 TTS blob size:', blob.size);
-        const url = URL.createObjectURL(blob);
-        const aud = new Audio(url);
-        stopLoop();
-        crossfadeTo(randParlato(), true);
-        await new Promise(resolve => {
-          aud.onended = ()=>{ URL.revokeObjectURL(url); resolve(); };
-          setTimeout(resolve, 30000);
-          aud.play().catch(e => { console.log('Audio play errore:', e); resolve(); });
-        });
-        loopPool(POOL.lunga);
+        if (blob.size > 0) {
+          const url = URL.createObjectURL(blob);
+          const aud = new Audio(url);
+          await new Promise(resolve => {
+            aud.onended = ()=>{ URL.revokeObjectURL(url); resolve(); };
+            setTimeout(resolve, 30000);
+            aud.play().catch(e => { console.log('Audio play errore:', e); resolve(); });
+          });
+        }
       }
     } catch(e) { console.log('TTS foto errore:', e.message); }
     setStatus('idle');
@@ -605,7 +604,7 @@ camInp.addEventListener('change', async () => {
             const imgTest = new Image();
             await new Promise(resolve => {
               imgTest.onload = resolve;
-              imgTest.onerror = resolve; // usa foto cliente come fallback
+              imgTest.onerror = resolve;
               imgTest.src = imgUrl;
               setTimeout(resolve, 2000);
             });
@@ -616,15 +615,21 @@ camInp.addEventListener('change', async () => {
               prevImg.src = imgUrl;
               prevImg.style.opacity = '1';
             }
+            // Zoom che copre tutto lo schermo inclusa Tania
             prevDiv.style.transition = 'all 0.6s ease';
+            prevDiv.style.position = 'fixed';
+            prevDiv.style.inset = '0';
             prevDiv.style.width = '100vw';
+            prevDiv.style.height = '100vh';
             prevDiv.style.bottom = '0';
             prevDiv.style.left = '0';
             prevDiv.style.transform = 'none';
             prevDiv.style.borderRadius = '0';
-            prevDiv.style.zIndex = '50';
-            prevImg.style.height = '65vh';
-            prevImg.style.objectFit = 'cover';
+            prevDiv.style.zIndex = '12'; // sopra video Tania (z-index 10)
+            prevImg.style.width = '100%';
+            prevImg.style.height = '100%';
+            prevImg.style.objectFit = 'contain';
+            prevImg.style.background = 'rgba(0,0,0,0.9)';
             await new Promise(r => setTimeout(r, 600));
             await speak(frase2.trim(), 'foto');
           }
@@ -669,18 +674,30 @@ camInp.addEventListener('change', async () => {
     // Reset animazione foto
     const pd = document.getElementById('photoPreview');
     if (pd) {
-      pd.style.transition = '';
+      pd.style.transition = 'all 0.4s ease';
+      pd.style.position = 'fixed';
+      pd.style.inset = '';
       pd.style.width = '220px';
+      pd.style.height = '';
       pd.style.bottom = '200px';
       pd.style.left = '50%';
       pd.style.transform = 'translateX(-50%)';
       pd.style.borderRadius = '10px';
       pd.style.zIndex = '15';
       const pi = document.getElementById('photoImg');
-      if (pi) { pi.style.height = ''; pi.style.objectFit = ''; }
+      if (pi) {
+        pi.style.width = '';
+        pi.style.height = '';
+        pi.style.objectFit = '';
+        pi.style.background = '';
+        pi.style.opacity = '1';
+        pi.style.transition = '';
+      }
     }
-    isBusy=false; setStatus('idle'); camInp.value='';
-    loopPool(POOL.lunga);
+    isBusy = false;
+    setStatus('idle');
+    camInp.value = '';
+    loopPool(POOL.lunga); // video di attesa, NON parlato
   }
 });
 
