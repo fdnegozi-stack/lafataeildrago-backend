@@ -447,10 +447,36 @@ function randParlato() {
 
 async function speak(testo, tipo='normale') {
   setStatus('speak');
+  if (tipo === 'foto') {
+    // Foto: solo audio TTS, video di attesa continuano
+    loopPool(POOL.lunga);
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 15000);
+      const r = await fetch(SERVER+'/api/tts', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ text:testo, lang:LANG }),
+        signal: ctrl.signal
+      });
+      clearTimeout(t);
+      if (r.ok) {
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const aud = new Audio(url);
+        await new Promise(resolve => {
+          aud.onended = ()=>{ URL.revokeObjectURL(url); resolve(); };
+          setTimeout(resolve, 30000);
+          aud.play();
+        });
+      }
+    } catch(e) { console.log('TTS foto errore:', e.message); }
+    setStatus('idle');
+    return;
+  }
+
+  // Normale: prova lipsync poi fallback audio
   stopLoop();
-  // Mostra video parlato solo se tipo='normale' (risposta vocale)
-  // Per le foto (tipo='foto') resta sui video di attesa
-  if (tipo !== 'foto') crossfadeTo(randParlato(), true);
+  crossfadeTo(randParlato(), true);
 
   // Prima prova lip-sync con timeout 5s
   try {
@@ -534,27 +560,46 @@ camInp.addEventListener('change', async () => {
       prevPrezzo.textContent = top.prezzo ? `€ ${parseFloat(top.prezzo).toFixed(2)}` : '';
       prevRes.textContent = `sim: ${top.similarity != null ? (top.similarity*100).toFixed(0)+'%' : '?'}`;
       setStatus('speak');
-      console.log('📷 Chiamo avatar-response su:', SERVER, 'sottocategoria:', top.sottocategoria || top.categoria);
+
+      // 1. Avvia subito la richiesta risposta (parallela)
+      const ctrl3 = new AbortController();
+      const t3 = setTimeout(() => ctrl3.abort(), 20000);
+      const avatarPromise = fetch(SERVER+'/api/avatar-response', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ prodotto:top, lingua:LANG, mode:'mobile' }),
+        signal: ctrl3.signal
+      }).catch(e => null);
+
+      // 2. Intanto prova a caricare il lipsync della sottocategoria (preregistrato di notte)
+      const chiaveSub = (top.sottocategoria || top.categoria || 'oggetto').toLowerCase().replace(/\s+/g,'_').substring(0,40);
+      const lsCheck = await fetch(SERVER+'/api/tts-lipsync', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ text: `_foto_${LANG}_${chiaveSub}`, lang: LANG, tipo:'foto', checkOnly: true })
+      }).catch(() => null);
+      const lsData = lsCheck ? await lsCheck.json().catch(()=>({})) : {};
+
+      if (lsData.ok && lsData.videoUrl) {
+        // Lipsync sottocategoria disponibile — mostralo mentre aspetta la risposta
+        stopLoop();
+        crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); });
+      }
+
+      // 3. Aspetta la risposta testuale e riproduci con TTS
       try {
-        const ctrl3 = new AbortController();
-        const t3 = setTimeout(() => ctrl3.abort(), 15000);
-        const r2 = await fetch(SERVER+'/api/avatar-response', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ prodotto:top, lingua:LANG, mode:'mobile' }),
-          signal: ctrl3.signal
-        });
+        const r2 = await avatarPromise;
         clearTimeout(t3);
-        const t2 = await r2.text();
-        let full = '';
-        for (const line of t2.split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          try { const j=JSON.parse(line.slice(6)); if(j.token) full+=j.token; } catch {}
+        if (r2 && r2.ok) {
+          const t2 = await r2.text();
+          let full = '';
+          for (const line of t2.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            try { const j=JSON.parse(line.slice(6)); if(j.token) full+=j.token; } catch {}
+          }
+          console.log('📷 Risposta avatar:', full.substring(0,60));
+          if (full.trim()) await speak(full.trim(), 'foto');
         }
-        console.log('📷 Risposta avatar:', full.substring(0,60));
-        if (full.trim()) await speak(full.trim(), 'foto');
       } catch(e) {
         console.log('📷 avatar-response errore:', e.message);
-        prevRes.textContent = 'Errore risposta: ' + e.message;
       }
     } else {
       const sim = top ? ` (${(top.similarity*100).toFixed(0)}%)` : '';
