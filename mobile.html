@@ -463,6 +463,9 @@ async function speak(testo, tipo='normale') {
         const blob = await r.blob();
         const url = URL.createObjectURL(blob);
         const aud = new Audio(url);
+        // Mostra video parlato solo quando l'audio parte davvero
+        stopLoop();
+        crossfadeTo(randParlato(), true);
         await new Promise(resolve => {
           aud.onended = ()=>{ URL.revokeObjectURL(url); resolve(); };
           setTimeout(resolve, 30000);
@@ -471,6 +474,7 @@ async function speak(testo, tipo='normale') {
       }
     } catch(e) { console.log('TTS foto errore:', e.message); }
     setStatus('idle');
+    loopPool(POOL.lunga);
     return;
   }
 
@@ -570,33 +574,43 @@ camInp.addEventListener('change', async () => {
         signal: ctrl3.signal
       }).catch(e => null);
 
-      // 2. Intanto prova a caricare il lipsync della sottocategoria (preregistrato di notte)
-      const chiaveSub = (top.sottocategoria || top.categoria || 'oggetto').toLowerCase().replace(/\s+/g,'_').substring(0,40);
-      const lsCheck = await fetch(SERVER+'/api/tts-lipsync', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ text: `_foto_${LANG}_${chiaveSub}`, lang: LANG, tipo:'foto', checkOnly: true })
-      }).catch(() => null);
-      const lsData = lsCheck ? await lsCheck.json().catch(()=>({})) : {};
-
-      if (lsData.ok && lsData.videoUrl) {
-        // Lipsync sottocategoria disponibile — mostralo mentre aspetta la risposta
-        stopLoop();
-        crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); });
-      }
-
-      // 3. Aspetta la risposta testuale e riproduci con TTS
+      // Aspetta le due frasi e riproduci in sequenza
       try {
         const r2 = await avatarPromise;
         clearTimeout(t3);
         if (r2 && r2.ok) {
           const t2 = await r2.text();
-          let full = '';
+          let frase1 = '', frase2 = '';
           for (const line of t2.split('\n')) {
             if (!line.startsWith('data: ')) continue;
-            try { const j=JSON.parse(line.slice(6)); if(j.token) full+=j.token; } catch {}
+            try {
+              const j = JSON.parse(line.slice(6));
+              if (j.frase1) frase1 = j.frase1;
+              if (j.frase2) frase2 = j.frase2;
+              // fallback se arriva ancora token singolo
+              if (j.token) frase1 += j.token;
+            } catch {}
           }
-          console.log('📷 Risposta avatar:', full.substring(0,60));
-          if (full.trim()) await speak(full.trim(), 'foto');
+          console.log('📷 Frase1:', frase1.substring(0,60));
+          console.log('📷 Frase2:', frase2.substring(0,60));
+
+          // Frase 1 — brand/materiali, Tania in attesa con audio
+          if (frase1.trim()) await speak(frase1.trim(), 'foto');
+
+          // Frase 2 — oggetto specifico, foto si ingrandisce coprendo Tania
+          if (frase2.trim()) {
+            prevDiv.style.transition = 'all 0.6s ease';
+            prevDiv.style.width = '100vw';
+            prevDiv.style.bottom = '0';
+            prevDiv.style.left = '0';
+            prevDiv.style.transform = 'none';
+            prevDiv.style.borderRadius = '0';
+            prevDiv.style.zIndex = '50';
+            prevImg.style.height = '65vh';
+            prevImg.style.objectFit = 'cover';
+            await new Promise(r => setTimeout(r, 600));
+            await speak(frase2.trim(), 'foto');
+          }
         }
       } catch(e) {
         console.log('📷 avatar-response errore:', e.message);
@@ -635,6 +649,19 @@ camInp.addEventListener('change', async () => {
     }
   } catch(e) { prevRes.textContent = 'Errore: ' + e.message; }
   finally {
+    // Reset animazione foto
+    const pd = document.getElementById('photoPreview');
+    if (pd) {
+      pd.style.transition = '';
+      pd.style.width = '220px';
+      pd.style.bottom = '200px';
+      pd.style.left = '50%';
+      pd.style.transform = 'translateX(-50%)';
+      pd.style.borderRadius = '10px';
+      pd.style.zIndex = '15';
+      const pi = document.getElementById('photoImg');
+      if (pi) { pi.style.height = ''; pi.style.objectFit = ''; }
+    }
     isBusy=false; setStatus('idle'); camInp.value='';
     loopPool(POOL.lunga);
   }
