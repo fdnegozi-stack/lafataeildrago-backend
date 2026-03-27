@@ -451,7 +451,7 @@ async function speak(testo, tipo='normale') {
     loopPool(POOL.lunga);
     try {
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 45000);
+      const t = setTimeout(() => ctrl.abort(), 25000);
       console.log('🔊 TTS foto richiesta:', testo.substring(0,40));
       const r = await fetch(SERVER+'/api/tts', {
         method:'POST', headers:{'Content-Type':'application/json'},
