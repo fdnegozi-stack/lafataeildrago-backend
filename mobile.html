@@ -451,7 +451,7 @@ async function speak(testo, tipo='normale') {
     loopPool(POOL.lunga);
     try {
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 15000);
+      const t = setTimeout(() => ctrl.abort(), 45000);
       console.log('🔊 TTS foto richiesta:', testo.substring(0,40));
       const r = await fetch(SERVER+'/api/tts', {
         method:'POST', headers:{'Content-Type':'application/json'},
@@ -598,8 +598,24 @@ camInp.addEventListener('change', async () => {
           // Frase 1 — brand/materiali, Tania in attesa con audio
           if (frase1.trim()) await speak(frase1.trim(), 'foto');
 
-          // Frase 2 — oggetto specifico, foto si ingrandisce coprendo Tania
+          // Frase 2 — oggetto specifico, foto prodotto si ingrandisce coprendo Tania
           if (frase2.trim()) {
+            // Carica immagine prodotto dal server (pulita, non foto del cliente)
+            const imgUrl = SERVER + '/img-locali/' + top.id + '.jpg';
+            const imgTest = new Image();
+            await new Promise(resolve => {
+              imgTest.onload = resolve;
+              imgTest.onerror = resolve; // usa foto cliente come fallback
+              imgTest.src = imgUrl;
+              setTimeout(resolve, 2000);
+            });
+            if (imgTest.complete && imgTest.naturalWidth > 0) {
+              prevImg.style.transition = 'opacity 0.4s';
+              prevImg.style.opacity = '0';
+              await new Promise(r => setTimeout(r, 400));
+              prevImg.src = imgUrl;
+              prevImg.style.opacity = '1';
+            }
             prevDiv.style.transition = 'all 0.6s ease';
             prevDiv.style.width = '100vw';
             prevDiv.style.bottom = '0';
