@@ -448,33 +448,34 @@ function randParlato() {
 async function speak(testo, tipo='normale') {
   setStatus('speak');
   if (tipo === 'foto') {
-    // Foto: solo audio TTS, video di attesa continuano
     loopPool(POOL.lunga);
     try {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 15000);
+      console.log('🔊 TTS foto richiesta:', testo.substring(0,40));
       const r = await fetch(SERVER+'/api/tts', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ text:testo, lang:LANG }),
         signal: ctrl.signal
       });
       clearTimeout(t);
+      console.log('🔊 TTS foto risposta:', r.ok, r.status);
       if (r.ok) {
         const blob = await r.blob();
+        console.log('🔊 TTS blob size:', blob.size);
         const url = URL.createObjectURL(blob);
         const aud = new Audio(url);
-        // Mostra video parlato solo quando l'audio parte davvero
         stopLoop();
         crossfadeTo(randParlato(), true);
         await new Promise(resolve => {
           aud.onended = ()=>{ URL.revokeObjectURL(url); resolve(); };
           setTimeout(resolve, 30000);
-          aud.play();
+          aud.play().catch(e => { console.log('Audio play errore:', e); resolve(); });
         });
+        loopPool(POOL.lunga);
       }
     } catch(e) { console.log('TTS foto errore:', e.message); }
     setStatus('idle');
-    loopPool(POOL.lunga);
     return;
   }
 
@@ -625,7 +626,7 @@ camInp.addEventListener('change', async () => {
         de: "Den fotografierten Artikel haben wir nicht... oder ich habe ihn nicht erkannt?",
       };
       const msgTesto = MSG[LANG] || MSG['en'];
-      stopLoop(); crossfadeTo(randParlato(), true);
+      loopPool(POOL.lunga); // resta in attesa, non mostrare video parlato
       try {
         const ctrl2 = new AbortController();
         const t2 = setTimeout(() => ctrl2.abort(), 8000);
