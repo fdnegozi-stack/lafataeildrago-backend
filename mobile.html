@@ -451,7 +451,7 @@ async function speak(testo, tipo='normale') {
     loopPool(POOL.lunga); // resta su video di attesa
     try {
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 25000);
+      const t = setTimeout(() => ctrl.abort(), 60000);
       console.log('🔊 TTS foto richiesta:', testo.substring(0,40));
       const r = await fetch(SERVER+'/api/tts', {
         method:'POST', headers:{'Content-Type':'application/json'},
@@ -564,20 +564,19 @@ camInp.addEventListener('change', async () => {
       prevPrezzo.textContent = top.prezzo ? `€ ${parseFloat(top.prezzo).toFixed(2)}` : '';
       prevRes.textContent = `sim: ${top.similarity != null ? (top.similarity*100).toFixed(0)+'%' : '?'}`;
       setStatus('speak');
+      loopPool(POOL.lunga); // Tania resta in attesa
 
-      // 1. Avvia subito la richiesta risposta (parallela)
-      const ctrl3 = new AbortController();
-      const t3 = setTimeout(() => ctrl3.abort(), 20000);
-      const avatarPromise = fetch(SERVER+'/api/avatar-response', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ prodotto:top, lingua:LANG, mode:'mobile' }),
-        signal: ctrl3.signal
-      }).catch(e => null);
-
-      // Aspetta le due frasi e riproduci in sequenza
       try {
-        const r2 = await avatarPromise;
+        // Aspetta le due frasi da Ollama (timeout 60s — genera 2 frasi in sequenza)
+        const ctrl3 = new AbortController();
+        const t3 = setTimeout(() => ctrl3.abort(), 60000);
+        const r2 = await fetch(SERVER+'/api/avatar-response', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ prodotto:top, lingua:LANG, mode:'mobile' }),
+          signal: ctrl3.signal
+        });
         clearTimeout(t3);
+
         if (r2 && r2.ok) {
           const t2 = await r2.text();
           let frase1 = '', frase2 = '';
@@ -587,55 +586,44 @@ camInp.addEventListener('change', async () => {
               const j = JSON.parse(line.slice(6));
               if (j.frase1) frase1 = j.frase1;
               if (j.frase2) frase2 = j.frase2;
-              // fallback se arriva ancora token singolo
-              if (j.token) frase1 += j.token;
+              if (j.token) frase1 += j.token; // fallback token singolo
             } catch {}
           }
           console.log('📷 Frase1:', frase1.substring(0,60));
           console.log('📷 Frase2:', frase2.substring(0,60));
 
-          // Frase 1 — brand/materiali, Tania in attesa con audio
-          if (frase1.trim()) await speak(frase1.trim(), 'foto');
-
-          // Frase 2 — oggetto specifico, foto prodotto si ingrandisce coprendo Tania
-          if (frase2.trim()) {
-            // Carica immagine prodotto dal server (pulita, non foto del cliente)
-            const imgUrl = SERVER + '/img-locali/' + top.id + '.jpg';
-            const imgTest = new Image();
-            await new Promise(resolve => {
-              imgTest.onload = resolve;
-              imgTest.onerror = resolve;
-              imgTest.src = imgUrl;
-              setTimeout(resolve, 2000);
-            });
-            if (imgTest.complete && imgTest.naturalWidth > 0) {
-              prevImg.style.transition = 'opacity 0.4s';
-              prevImg.style.opacity = '0';
-              await new Promise(r => setTimeout(r, 400));
-              prevImg.src = imgUrl;
-              prevImg.style.opacity = '1';
+          // Frase 1 — solo se lipsync già in cache (non genera Coqui al volo)
+          if (frase1.trim()) {
+            const crypto = await import('crypto').catch(()=>null);
+            // Controlla se audio già in cache
+            const lsCheck = await fetch(SERVER+'/api/tts-lipsync', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ text: frase1.trim(), lang: LANG })
+            }).catch(()=>null);
+            const lsData = lsCheck ? await lsCheck.json().catch(()=>({})) : {};
+            if (lsData.ok && lsData.videoUrl) {
+              // Lipsync pronto — usa video
+              await new Promise(resolve => {
+                stopLoop();
+                crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); resolve(); });
+              });
+            } else if (lsData.audioUrl) {
+              // Solo audio in cache — usa quello
+              const aud = new Audio(SERVER + lsData.audioUrl);
+              await new Promise(resolve => {
+                aud.onended = resolve;
+                setTimeout(resolve, 30000);
+                aud.play().catch(()=>resolve());
+              });
             }
-            // Zoom che copre tutto lo schermo inclusa Tania
-            prevDiv.style.transition = 'all 0.6s ease';
-            prevDiv.style.position = 'fixed';
-            prevDiv.style.inset = '0';
-            prevDiv.style.width = '100vw';
-            prevDiv.style.height = '100vh';
-            prevDiv.style.bottom = '0';
-            prevDiv.style.left = '0';
-            prevDiv.style.transform = 'none';
-            prevDiv.style.borderRadius = '0';
-            prevDiv.style.zIndex = '12'; // sopra video Tania (z-index 10)
-            prevImg.style.width = '100%';
-            prevImg.style.height = '100%';
-            prevImg.style.objectFit = 'contain';
-            prevImg.style.background = 'rgba(0,0,0,0.9)';
-            await new Promise(r => setTimeout(r, 600));
-            await speak(frase2.trim(), 'foto');
+            // Se niente in cache — salta frase1, passa direttamente a frase2
           }
+
+          // Frase 2 — sempre riprodotta, è corta quindi Coqui la genera velocemente
+          if (frase2.trim()) await speak(frase2.trim(), 'foto');
         }
       } catch(e) {
-        console.log('📷 avatar-response errore:', e.message);
+        console.log('📷 errore:', e.message);
       }
     } else {
       const sim = top ? ` (${(top.similarity*100).toFixed(0)}%)` : '';
