@@ -408,15 +408,13 @@ const setStatus = s => { ring.className = ''; ring.classList.add('show', s); };
 const showText  = t => { /* testo nascosto nel mobile — solo audio */ };
 
 // ── Offese ────────────────────────────────────────────────────────
-const RE_GRAVE = /cazzo|vaffanculo|troia|puttana|bastard|fuck.*you|scheiss|merde|joder|kurwa/i;
-const RE_MEDIA = /stupida|cretina|idiota|scema|deficiente|schifo|bitch|dumb|blöd/i;
-const RE_LIEVE = /robot|macchina|stupida app|non servi|boring|pathetic/i;
+const RE_GRAVE = /cazzo|vaffanculo|troia|puttana|bastarda|stronza|figlio di puttana|porco dio|porco cane|mannaggia|fuck|bitch|asshole|motherfucker|scheißkerl|scheiße|hurensohn|wichser|connard|enculé|salopard|hijo de puta|gilipollas|kurwa|jebany|whore|cunt|dickhead|bastard[oe]|pezzo di merda|vai a fanculo|fanculo|affanculo/i;
+const RE_MEDIA = /stupida|cretina|idiota|scema|deficiente|imbecille|rincoglionita|mongoloide|mentecatta|sciacquetta|ignorante|incompetente|inutile|schifo|disgustosa|orribile|brutta|antipatica|odiosa|insopportabile|ridicola|assurda|patetica|dumb|stupid|idiot|useless|ugly|blöd|doof|dumm|idiote|nulle|inútil|fea|głupia/i;
 let offesaCount = 0;
 function offesa(t) {
   if (RE_GRAVE.test(t)) { offesaCount++; return offesaCount >= 2 ? 'seNeVa' : 'grave'; }
   if (RE_MEDIA.test(t)) { offesaCount++; return 'media'; }
-  if (RE_LIEVE.test(t)) { offesaCount++; return 'lieve'; }
-  offesaCount = 0; // reset se non offende
+  offesaCount = 0;
   return null;
 }
 
@@ -619,8 +617,42 @@ camInp.addEventListener('change', async () => {
             // Se niente in cache — salta frase1, passa direttamente a frase2
           }
 
-          // Frase 2 — sempre riprodotta, è corta quindi Coqui la genera velocemente
-          if (frase2.trim()) await speak(frase2.trim(), 'foto');
+          // Frase 2 — prodotto specifico con zoom foto che copre il volto di Tania
+          if (frase2.trim()) {
+            // Carica immagine pulita dal server
+            const imgUrl = SERVER + '/img-locali/' + top.id + '.jpg';
+            const imgTest = new Image();
+            await new Promise(resolve => {
+              imgTest.onload = resolve;
+              imgTest.onerror = resolve;
+              imgTest.src = imgUrl;
+              setTimeout(resolve, 2000);
+            });
+            if (imgTest.complete && imgTest.naturalWidth > 0) {
+              prevImg.style.transition = 'opacity 0.4s';
+              prevImg.style.opacity = '0';
+              await new Promise(r => setTimeout(r, 400));
+              prevImg.src = imgUrl;
+              prevImg.style.opacity = '1';
+            }
+            // Zoom: copre metà superiore (dove si trova il volto di Tania)
+            prevDiv.style.transition = 'all 0.6s ease';
+            prevDiv.style.position = 'fixed';
+            prevDiv.style.top = '0';
+            prevDiv.style.left = '0';
+            prevDiv.style.width = '100vw';
+            prevDiv.style.height = '62vh';
+            prevDiv.style.bottom = 'auto';
+            prevDiv.style.transform = 'none';
+            prevDiv.style.borderRadius = '0 0 16px 16px';
+            prevDiv.style.zIndex = '11';
+            prevImg.style.width = '100%';
+            prevImg.style.height = '100%';
+            prevImg.style.objectFit = 'contain';
+            prevImg.style.background = 'rgba(0,0,0,0.95)';
+            await new Promise(r => setTimeout(r, 600));
+            await speak(frase2.trim(), 'foto');
+          }
         }
       } catch(e) {
         console.log('📷 errore:', e.message);
@@ -664,6 +696,7 @@ camInp.addEventListener('change', async () => {
     if (pd) {
       pd.style.transition = 'all 0.4s ease';
       pd.style.position = 'fixed';
+      pd.style.top = 'auto';
       pd.style.inset = '';
       pd.style.width = '220px';
       pd.style.height = '';
@@ -723,7 +756,7 @@ function startListening() {
           setTimeout(()=>loopPool(POOL.lunga), 10000);
         });
       } else {
-        const pool = off==='grave'?POOL.offesaGrave : off==='media'?POOL.offesaMedia : POOL.offesaLieve;
+        const pool = off==='grave' ? POOL.offesaGrave : POOL.offesaLieve;
         crossfadeTo(rand(pool), false, ()=>loopPool(POOL.lunga));
       }
     }
