@@ -408,8 +408,8 @@ const setStatus = s => { ring.className = ''; ring.classList.add('show', s); };
 const showText  = t => { /* testo nascosto nel mobile — solo audio */ };
 
 // ── Offese ────────────────────────────────────────────────────────
-const RE_GRAVE = /cazzo|vaffanculo|troia|puttana|bastarda|stronza|figlio di puttana|porco dio|porco cane|mannaggia|fuck|bitch|asshole|motherfucker|scheißkerl|scheiße|hurensohn|wichser|connard|enculé|salopard|hijo de puta|gilipollas|kurwa|jebany|whore|cunt|dickhead|bastard[oe]|pezzo di merda|vai a fanculo|fanculo|affanculo/i;
-const RE_MEDIA = /stupida|cretina|idiota|scema|deficiente|imbecille|rincoglionita|mongoloide|mentecatta|sciacquetta|ignorante|incompetente|inutile|schifo|disgustosa|orribile|brutta|antipatica|odiosa|insopportabile|ridicola|assurda|patetica|dumb|stupid|idiot|useless|ugly|blöd|doof|dumm|idiote|nulle|inútil|fea|głupia/i;
+const RE_GRAVE = /cazzo|vaffanculo|troia|puttana|bastarda|stronza|figlio di puttana|porco dio|porco cane|mannaggia|fuck|bitch|asshole|motherfucker|scheißkerl|scheiße|hurensohn|wichser|connard|enculé|salopard|hijo de puta|gilipollas|kurwa|jebany|whore|cunt|dickhead|bastard[oe]|pezzo di merda|vai a fanculo|fanculo|affanculo|skiderik|kæft|forbandede|jävla|helvete|fan ta dig|dra åt helvete/i;
+const RE_MEDIA = /stupida|cretina|idiota|scema|deficiente|imbecille|rincoglionita|mongoloide|mentecatta|sciacquetta|ignorante|incompetente|inutile|schifo|disgustosa|orribile|brutta|antipatica|odiosa|insopportabile|ridicola|assurda|patetica|dumb|stupid|idiot|useless|ugly|hässlich|nutzlos|bescheuert|deppert|trottel|vollidiot|doofkopf|blöd|doof|dumm|idiote|nulle|laide|bête|conne|débile|abrutie|dom|lelijk|nutteloos|stom|idioot|sufferd|inútil|fea|głupia|głupi|beznadziejny|nieużyteczna|brzydka|debilna|hloupá|ošklivá|neschopná|pitomá|buta|csúnya|haszontalan|hülye|ostoba|grim|ubrugelig|fult|värdelös|fånig|idiotisk/i;
 let offesaCount = 0;
 function offesa(t) {
   if (RE_GRAVE.test(t)) { offesaCount++; return offesaCount >= 2 ? 'seNeVa' : 'grave'; }
