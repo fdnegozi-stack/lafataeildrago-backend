@@ -149,7 +149,7 @@
 <style>
 #dbg { display:none; position:fixed; bottom:0; left:0; right:0; height:140px; background:rgba(0,0,0,0.85); color:#0f0; font-size:0.65rem; font-family:monospace; overflow-y:auto; z-index:9999; padding:4px; }
 #dbg.show { display:block; }
-#dbgBtn { display:none; position:fixed; top:4px; left:4px; background:rgba(0,0,0,0.5); color:#0f0; border:1px solid #0f0; padding:2px 6px; font-size:0.6rem; z-index:9999; border-radius:3px; }
+#dbgBtn { position:fixed; top:4px; left:4px; background:rgba(0,0,0,0.5); color:#0f0; border:1px solid #0f0; padding:2px 6px; font-size:0.6rem; z-index:9999; border-radius:3px; }
 </style>
 <script>
 (function(){
@@ -161,19 +161,6 @@
   console.log = (...args) => { orig(...args); const line = document.createElement('div'); line.textContent = args.map(a=>typeof a==='object'?JSON.stringify(a):a).join(' '); panel.appendChild(line); panel.scrollTop=panel.scrollHeight; };
   // 5 tap rapidi angolo in basso a sinistra per mostrare/nascondere DBG
   let tapCount = 0, tapTimer = null;
-  document.addEventListener('touchstart', (e) => {
-    const t = e.touches[0];
-    if (t.clientX < 80 && t.clientY > window.innerHeight - 80) {
-      tapCount++;
-      clearTimeout(tapTimer);
-      tapTimer = setTimeout(() => { tapCount = 0; }, 2000);
-      if (tapCount >= 5) {
-        tapCount = 0;
-        btn.style.display = btn.style.display === 'none' ? 'block' : 'none';
-        panel.classList.toggle('show');
-      }
-    }
-  }, { passive: true });
 })();
 </script>
 </head>
