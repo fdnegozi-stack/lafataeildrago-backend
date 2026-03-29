@@ -257,11 +257,17 @@ document.addEventListener('visibilitychange', () => {
 
 // ── Avvio ─────────────────────────────────────────────────────────
 async function caricaTunnelUrl() {
-  try {
-    const r = await fetch('https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url.json?t='+Date.now());
-    const d = await r.json();
-    if (d.url) { SERVER = d.url; console.log('✓ Tunnel URL:', SERVER); }
-  } catch(e) { console.log('tunnel-url errore:', e.message, '— uso fallback'); }
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const r = await fetch('https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url.json?t='+Date.now());
+      const d = await r.json();
+      if (d.url) { SERVER = d.url; console.log('✓ Tunnel URL:', SERVER); return; }
+    } catch(e) {
+      console.log(`tunnel-url tentativo ${attempt} fallito:`, e.message);
+      if (attempt < 3) await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  console.log('⚠ Uso URL fallback:', SERVER);
 }
 
 async function avvia() {
