@@ -419,24 +419,26 @@ async function speak(testo, tipo='normale') {
     console.log('🎬 lipsync:', lsData.ok ? 'trovato' : 'non trovato', lsData.videoUrl||'');
 
     if (lsData.ok && lsData.videoUrl) {
-      // Video lipsync trovato — usa elemento video dedicato CON audio
+      // Video lipsync trovato — riproducilo CON audio
       videoUsato = true;
       await new Promise(resolve => {
         const lsVid = document.createElement('video');
         lsVid.src = SERVER + lsData.videoUrl;
         lsVid.muted = false;
         lsVid.playsInline = true;
-        lsVid.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:5;';
+        lsVid.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:5;transition:opacity 0.8s ease;';
         document.body.appendChild(lsVid);
-        lsVid.oncanplay = () => {
-          lsVid.play().catch(e => { console.log('lipsync play errore:', e.message); });
-        };
+        lsVid.oncanplay = () => { lsVid.play().catch(e => console.log('lipsync play errore:', e.message)); };
         lsVid.onended = () => {
-          lsVid.remove();
-          loopPool(POOL.lunga); setStatus('idle'); resolve();
+          // Dissolvenza in uscita
+          lsVid.style.opacity = '0';
+          setTimeout(() => {
+            lsVid.remove();
+            loopPool(POOL.lunga); setStatus('idle'); resolve();
+          }, 800);
         };
         lsVid.onerror = () => { lsVid.remove(); resolve(); };
-        setTimeout(() => { lsVid.remove(); resolve(); }, 30000);
+        setTimeout(() => { lsVid.style.opacity='0'; setTimeout(()=>{ lsVid.remove(); resolve(); }, 800); }, 30000);
       });
       return;
     }
