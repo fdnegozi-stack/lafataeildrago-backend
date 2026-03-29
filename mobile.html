@@ -367,7 +367,7 @@ async function speak(testo, tipo='normale') {
 
   // Risposta vocale: cerca video lipsync in cache, NON genera al volo
   stopLoop();
-  crossfadeTo(randParlato(), true); // video parlato di attesa
+  loopPool(POOL.lunga); // resta sul video di attesa finché non trova lipsync
 
   let videoUsato = false;
   try {
