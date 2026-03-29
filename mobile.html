@@ -257,14 +257,24 @@ document.addEventListener('visibilitychange', () => {
 
 // ── Avvio ─────────────────────────────────────────────────────────
 async function caricaTunnelUrl() {
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (let attempt = 1; attempt <= 5; attempt++) {
     try {
-      const r = await fetch('https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url.json?t='+Date.now());
+      const r = await fetch('https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url.json?t='+Date.now()+'&r='+Math.random(), {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      });
       const d = await r.json();
-      if (d.url) { SERVER = d.url; console.log('✓ Tunnel URL:', SERVER); return; }
+      if (d.url && d.url !== SERVER) {
+        SERVER = d.url;
+        console.log('✓ Tunnel URL:', SERVER);
+        return;
+      } else if (d.url) {
+        console.log('✓ Tunnel URL invariato:', SERVER);
+        return;
+      }
     } catch(e) {
       console.log(`tunnel-url tentativo ${attempt} fallito:`, e.message);
-      if (attempt < 3) await new Promise(r => setTimeout(r, 1000));
+      if (attempt < 5) await new Promise(r => setTimeout(r, 2000));
     }
   }
   console.log('⚠ Uso URL fallback:', SERVER);
@@ -274,11 +284,10 @@ async function avvia() {
   const o = document.getElementById('startOverlay');
   if (o) { o.style.opacity='0'; o.style.pointerEvents='none'; setTimeout(()=>o.remove(),1000); }
 
-  // Sblocca autoplay audio — richiede interazione utente
+  // Sblocca autoplay audio
   try {
     const ctx = new (window.AudioContext||window.webkitAudioContext)();
     await ctx.resume();
-    // Riproduce silenzio per sbloccare audio su iOS/Android
     const buf = ctx.createBuffer(1,1,22050);
     const src = ctx.createBufferSource();
     src.buffer = buf; src.connect(ctx.destination); src.start(0);
@@ -287,6 +296,27 @@ async function avvia() {
 
   await caricaTunnelUrl();
   aggiornaPool();
+
+  // Verifica se il server è raggiungibile
+  let serverOnline = false;
+  try {
+    const ping = await fetch(SERVER+'/api/ping', { signal: AbortSignal.timeout(5000) });
+    serverOnline = ping.ok;
+  } catch(e) {}
+
+  if (!serverOnline) {
+    console.log('⚠ Server non raggiungibile — modalità offline');
+    // Mostra sfondo vuoto con foresta
+    startForest();
+    crossfadeTo(SERVER+'/video/sfondo vuoto.mp4', true);
+    // Nascondi pulsanti
+    document.getElementById('ui').style.opacity = '0';
+    document.getElementById('ui').style.pointerEvents = 'none';
+    // Riprova ogni 30 secondi
+    setTimeout(avvia, 30000);
+    return;
+  }
+
   startForest();
   document.getElementById('ui').classList.add('show');
   document.getElementById('logoTop').classList.add('show');
