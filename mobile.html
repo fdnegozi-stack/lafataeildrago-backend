@@ -159,20 +159,21 @@
   document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(btn));
   const orig = console.log.bind(console);
   console.log = (...args) => { orig(...args); const line = document.createElement('div'); line.textContent = args.map(a=>typeof a==='object'?JSON.stringify(a):a).join(' '); panel.appendChild(line); panel.scrollTop=panel.scrollHeight; };
-  // Triplo tap angolo in basso a sinistra per mostrare/nascondere DBG
+  // 5 tap rapidi angolo in basso a sinistra per mostrare/nascondere DBG
   let tapCount = 0, tapTimer = null;
-  document.addEventListener('click', (e) => {
-    if (e.clientX < 60 && e.clientY > window.innerHeight - 60) {
+  document.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    if (t.clientX < 80 && t.clientY > window.innerHeight - 80) {
       tapCount++;
       clearTimeout(tapTimer);
-      tapTimer = setTimeout(() => { tapCount = 0; }, 600);
-      if (tapCount >= 3) {
+      tapTimer = setTimeout(() => { tapCount = 0; }, 2000);
+      if (tapCount >= 5) {
         tapCount = 0;
         btn.style.display = btn.style.display === 'none' ? 'block' : 'none';
         panel.classList.toggle('show');
       }
     }
-  });
+  }, { passive: true });
 })();
 </script>
 </head>
