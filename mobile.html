@@ -3,138 +3,51 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
 <title>La Fata & il Drago</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #000; min-height: 100vh; font-family: 'Georgia', serif; color: #d4af37; overflow: hidden; }
-
-  /* ── Video fullscreen background ── */
-  #avatarFrame {
-    position: fixed; inset: 0; z-index: 0;
-    width: 100vw; height: 100vh; background: #000; overflow: hidden;
-  }
-  .vid-layer {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: cover; transition: opacity 0.4s linear;
-  }
+  #avatarFrame { position: fixed; inset: 0; z-index: 0; width: 100vw; height: 100vh; background: #000; overflow: hidden; }
+  .vid-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.4s linear; }
   .vid-layer.hidden  { opacity: 0; pointer-events: none; }
   .vid-layer.visible { opacity: 1; }
-  #logoFallback {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: cover; transition: opacity 0.4s;
-  }
+  #logoFallback { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.4s; }
   #logoFallback.hidden { opacity: 0; }
-
-  /* ── Overlay intro ── */
-  #startOverlay {
-    position: fixed; inset: 0; z-index: 999;
-    background: #000;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px;
-    cursor: pointer; transition: opacity 1s ease;
-  }
-  #introLogo {
-    width: 150px; height: 150px; object-fit: contain; border-radius: 50%;
-    animation: logoPulse 2s ease-in-out infinite;
-    box-shadow: 0 0 40px rgba(212,175,55,0.6);
-  }
-  .intro-text {
-    display: flex; flex-direction: column; align-items: center; gap: 14px;
-  }
-  .intro-title {
-    color: #d4af37; font-size: 1.4rem; letter-spacing: 0.2em;
-    text-shadow: 0 0 20px rgba(212,175,55,0.8);
-  }
-  .intro-tap {
-    display: flex; align-items: center; gap: 10px;
-    animation: tapBounce 1.5s ease-in-out infinite;
-  }
+  #startOverlay { position: fixed; inset: 0; z-index: 999; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px; cursor: pointer; transition: opacity 1s ease; }
+  #introLogo { width: 150px; height: 150px; object-fit: contain; border-radius: 50%; animation: logoPulse 2s ease-in-out infinite; box-shadow: 0 0 40px rgba(212,175,55,0.6); }
+  .intro-text { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .intro-title { color: #d4af37; font-size: 1.4rem; letter-spacing: 0.2em; text-shadow: 0 0 20px rgba(212,175,55,0.8); }
+  .intro-tap { display: flex; align-items: center; gap: 10px; animation: tapBounce 1.5s ease-in-out infinite; }
   .intro-tap span { color: #a07830; font-size: 0.9rem; letter-spacing: 0.15em; }
-
-  @keyframes logoPulse {
-    0%,100% { transform: scale(1); box-shadow: 0 0 30px rgba(212,175,55,0.5); }
-    50% { transform: scale(1.08); box-shadow: 0 0 60px rgba(212,175,55,0.9); }
-  }
-  @keyframes tapBounce {
-    0%,100% { transform: translateY(0); opacity: 1; }
-    50% { transform: translateY(-8px); opacity: 0.7; }
-  }
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  /* ── UI overlay ── */
-  #ui {
-    position: fixed; inset: 0; z-index: 10;
-    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-    padding: 24px 16px 36px; gap: 14px;
-    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 45%, transparent 70%);
-    pointer-events: none; opacity: 0;
-  }
+  @keyframes logoPulse { 0%,100%{transform:scale(1);box-shadow:0 0 30px rgba(212,175,55,0.5)} 50%{transform:scale(1.08);box-shadow:0 0 60px rgba(212,175,55,0.9)} }
+  @keyframes tapBounce { 0%,100%{transform:translateY(0);opacity:1} 50%{transform:translateY(-8px);opacity:0.7} }
+  #ui { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 24px 16px 36px; gap: 14px; background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 45%, transparent 70%); pointer-events: none; opacity: 0; }
   #ui.show { opacity: 1; transition: opacity 2.5s ease 0.5s; pointer-events: auto; }
   .action-buttons { display: flex; gap: 24px; align-items: flex-end; justify-content: center; opacity: 0; transform: translateY(20px); transition: opacity 2s ease 1.5s, transform 2s ease 1.5s; }
   #ui.show .action-buttons { opacity: 1; transform: translateY(0); }
   .titolo-basso { font-size: 1rem; letter-spacing: 0.18em; color: #d4af37; text-shadow: 0 0 12px rgba(212,175,55,0.7); opacity: 0; transform: translateY(10px); transition: opacity 2s ease 2.5s, transform 2s ease 2.5s; }
   #ui.show .titolo-basso { opacity: 1; transform: translateY(0); }
-
-  /* Logo in alto */
-  #logoTop {
-    position: fixed; top: 14px; left: 16px; z-index: 20;
-    width: 180px; height: 180px;
-    opacity: 0; transition: opacity 1s ease;
-  }
+  #logoTop { position: fixed; top: 14px; left: 16px; z-index: 20; width: 180px; height: 180px; opacity: 0; transition: opacity 1s ease; }
   #logoTop.show { opacity: 1; }
   #logoTop img { width: 100%; height: 100%; object-fit: contain; }
-
-  /* Status ring */
-  #statusRing { display: none; } /* puntino rimosso */
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
-  /* Bolla risposta */
-  #responseBubble {
-    background: rgba(10,8,0,0.78); border: 1px solid rgba(212,175,55,0.4);
-    border-radius: 12px; padding: 12px 16px; font-size: 0.95rem; line-height: 1.6;
-    color: #f0e0b0; text-align: center; width: 100%; max-width: 420px; min-height: 54px;
-    display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(4px); text-shadow: 0 1px 3px rgba(0,0,0,0.8);
-    opacity: 0; transition: opacity 0.4s; pointer-events: none;
-  }
+  #statusRing { display: none; }
+  #responseBubble { background: rgba(10,8,0,0.78); border: 1px solid rgba(212,175,55,0.4); border-radius: 12px; padding: 12px 16px; font-size: 0.95rem; line-height: 1.6; color: #f0e0b0; text-align: center; width: 100%; max-width: 420px; min-height: 54px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); text-shadow: 0 1px 3px rgba(0,0,0,0.8); opacity: 0; transition: opacity 0.4s; pointer-events: none; }
   #responseBubble.visible { opacity: 1; pointer-events: auto; }
-
-  /* Pulsanti */
   .action-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
-  .btn-circle {
-    width: 128px; height: 128px; border-radius: 50%;
-    border: 2px solid #d4af37; background: rgba(10,8,0,0.7);
-    color: #d4af37; font-size: 3.2rem;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 16px rgba(212,175,55,0.2); transition: all 0.2s;
-  }
+  .btn-circle { width: 128px; height: 128px; border-radius: 50%; border: 2px solid #d4af37; background: rgba(10,8,0,0.7); color: #d4af37; font-size: 3.2rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px rgba(212,175,55,0.2); transition: all 0.2s; }
   .btn-circle.active { background: rgba(79,195,247,0.2); border-color: #4fc3f7; color: #4fc3f7; }
   .btn-label { font-size: 1.2rem; color: #8a6818; letter-spacing: 0.12em; text-transform: uppercase; }
-
-  /* Titolo sotto */
-
-  /* Overlay ascolto */
-  #listeningOverlay {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100;
-    flex-direction: column; align-items: center; justify-content: center; gap: 20px;
-  }
+  #listeningOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
   #listeningOverlay.show { display: flex; }
   .listening-text { font-size: 1.3rem; color: #4fc3f7; letter-spacing: 0.15em; text-shadow: 0 0 15px rgba(79,195,247,0.6); }
   .wave-bars { display: flex; gap: 5px; align-items: center; height: 40px; }
   .wave-bar { width: 7px; background: #4fc3f7; border-radius: 4px; animation: wave 0.8s ease-in-out infinite; }
-  .wave-bar:nth-child(2){animation-delay:.1s} .wave-bar:nth-child(3){animation-delay:.2s}
-  .wave-bar:nth-child(4){animation-delay:.3s} .wave-bar:nth-child(5){animation-delay:.4s}
+  .wave-bar:nth-child(2){animation-delay:.1s} .wave-bar:nth-child(3){animation-delay:.2s} .wave-bar:nth-child(4){animation-delay:.3s} .wave-bar:nth-child(5){animation-delay:.4s}
   @keyframes wave { 0%,100%{height:8px} 50%{height:36px} }
-  .cancel-btn {
-    padding: 8px 26px; border: 1px solid rgba(212,175,55,0.4); border-radius: 20px;
-    background: transparent; color: #8a6818; font-size: 0.82rem; cursor: pointer;
-  }
-
-  /* Preview foto */
+  .cancel-btn { padding: 8px 26px; border: 1px solid rgba(212,175,55,0.4); border-radius: 20px; background: transparent; color: #8a6818; font-size: 0.82rem; cursor: pointer; }
   #photoPreview { display: none; position: fixed; bottom: 200px; left: 50%; transform: translateX(-50%); width: 220px; z-index: 15; border-radius: 10px; overflow: hidden; border: 1px solid rgba(212,175,55,0.4); background: rgba(10,8,0,0.92); }
   #photoPreview.show { display: block; }
   #photoPreview img { width: 100%; display: block; }
@@ -142,10 +55,9 @@
   #photoNome { font-size: 0.82rem; color: #f0d080; font-weight: bold; padding: 6px 10px 0; text-align: center; }
   #photoPrezzo { font-size: 0.9rem; color: #ffd700; font-weight: bold; padding: 2px 10px 6px; text-align: center; }
   #photoClose { position: absolute; top: 4px; right: 6px; color: #c8b060; font-size: 1.1rem; cursor: pointer; z-index: 16; }
-
   #cameraInput { display: none; }
 </style>
-<!-- Debug console mobile — rimuovere prima del go-live -->
+<!-- Debug console — rimuovere prima del go-live -->
 <style>
 #dbg { display:none; position:fixed; bottom:0; left:0; right:0; height:140px; background:rgba(0,0,0,0.85); color:#0f0; font-size:0.65rem; font-family:monospace; overflow-y:auto; z-index:9999; padding:4px; }
 #dbg.show { display:block; }
@@ -153,20 +65,23 @@
 </style>
 <script>
 (function(){
-  const panel = document.createElement('div'); panel.id='dbg'; document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(panel));
+  const panel = document.createElement('div'); panel.id='dbg';
+  document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(panel));
   const btn = document.createElement('button'); btn.id='dbgBtn'; btn.textContent='DBG';
   btn.onclick = () => panel.classList.toggle('show');
   document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(btn));
   const orig = console.log.bind(console);
-  console.log = (...args) => { orig(...args); const line = document.createElement('div'); line.textContent = args.map(a=>typeof a==='object'?JSON.stringify(a):a).join(' '); panel.appendChild(line); panel.scrollTop=panel.scrollHeight; };
-  // 5 tap rapidi angolo in basso a sinistra per mostrare/nascondere DBG
-  let tapCount = 0, tapTimer = null;
+  console.log = (...args) => {
+    orig(...args);
+    const line = document.createElement('div');
+    line.textContent = args.map(a=>typeof a==='object'?JSON.stringify(a):a).join(' ');
+    panel.appendChild(line); panel.scrollTop = panel.scrollHeight;
+  };
 })();
 </script>
 </head>
 <body>
 
-<!-- Intro overlay -->
 <div id="startOverlay" onclick="avvia()">
   <img id="introLogo" src="logo.png" alt="La Fata & il Drago"/>
   <div class="intro-text">
@@ -178,23 +93,15 @@
   </div>
 </div>
 
-<!-- Video background -->
 <div id="avatarFrame">
   <video class="vid-layer hidden" id="vidA" playsinline muted></video>
   <video class="vid-layer hidden" id="vidB" playsinline muted></video>
-  <video id="vidPreload" playsinline muted preload="auto" style="display:none"></video>
   <img id="logoFallback" src="logo.png" alt="Tania" style="object-fit:contain;padding:20%;"/>
 </div>
 
-<!-- Logo top left -->
-<div id="logoTop">
-  <img src="logo.png" alt="F&D"/>
-</div>
-
-<!-- Status ring -->
+<div id="logoTop"><img src="logo.png" alt="F&D"/></div>
 <div id="statusRing"></div>
 
-<!-- UI overlay -->
 <div id="ui">
   <div id="responseBubble"></div>
   <div class="action-buttons">
@@ -210,7 +117,6 @@
   <p class="titolo-basso">✦ la Fata &amp; il Drago ✦</p>
 </div>
 
-<!-- Overlay ascolto -->
 <div id="listeningOverlay">
   <p class="listening-text">Sto ascoltando...</p>
   <div class="wave-bars">
@@ -231,43 +137,42 @@
 
 <script>
 // ── Config ───────────────────────────────────────────────────────
-let SERVER = 'https://silly-hobby-latino-comfort.trycloudflare.com'; // fallback aggiornato
+let SERVER = 'https://silly-hobby-latino-comfort.trycloudflare.com';
 const LINGUE = ['it','en','de','fr','es','nl','pl','cs','sk','hu','ro','bg','sl','hr','sr','bs','sq','el','uk','ru','et','lv','lt','sv','no','da','fi'];
 const _lr = (navigator.language||'it').split('-')[0].toLowerCase();
 const LANG = LINGUE.includes(_lr) ? _lr : 'it';
 
 // ── Video pool ────────────────────────────────────────────────────
-const V = SERVER + '/video/';
+let V = SERVER + '/video/';
 const POOL = {
-  entrata:     [V+'entrata.mp4'],
-  breve:       [V+'attesa1_3.mp4',V+'attesa2_3.mp4',V+'attesa1_4.mp4',V+'attesa1_5.mp4'],
-  lunga:       [V+'attesa1_9.mp4',V+'attesa2_9.mp4',V+'attesa3_9.mp4',V+'attesa4_9.mp4'],
-  parlato:     [V+'parlato normale 1.mp4',V+'parlato normale 2.mp4',V+'parlato normale 3.mp4'],
-  medio:       [V+'attesa1_6.mp4',V+'attesa1_7.mp4',V+'attesa2_7.mp4',V+'attesa1_8.mp4'],
-  saluto:      [V+'saluto 1.mp4',V+'saluto 2.mp4'],
-  qrcode:      [V+'qrcode.mp4'],
-  sfondoVuoto: [V+'sfondo vuoto.mp4'],
-  offesaLieve: [V+'offesa lieve.mp4'],
-  offesaMedia: [],
-  offesaGrave: [V+'offesa grave.mp4'],
-  offesaSeNeVa: [V+'offesa e se ne va.mp4'],
+  entrata:      [],
+  breve:        [],
+  lunga:        [],
+  parlato:      [],
+  medio:        [],
+  sfondoVuoto:  [],
+  offesaLieve:  [],
+  offesaGrave:  [],
+  offesaSeNeVa: [],
 };
-let _lastRand = {};
 
-// ── Cache video in memoria — evita ri-download ────────────────
-const _videoCache = {};
-async function _fetchVideo(src) {
-  if (_videoCache[src]) return _videoCache[src];
-  try {
-    const resp = await fetch(src);
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
-    _videoCache[src] = url;
-    return url;
-  } catch(e) { return src; } // fallback all'URL originale
+function aggiornaPool() {
+  V = SERVER + '/video/';
+  POOL.entrata      = [SERVER+'/video/entrata.mp4'];
+  POOL.breve        = ['attesa1_3','attesa2_3','attesa1_4','attesa1_5'].map(n=>SERVER+'/video/'+n+'.mp4');
+  POOL.lunga        = ['attesa1_9','attesa2_9','attesa3_9','attesa4_9'].map(n=>SERVER+'/video/'+n+'.mp4');
+  POOL.parlato      = [1,2,3].map(i=>SERVER+'/video/parlato normale '+i+'.mp4');
+  POOL.medio        = ['attesa1_6','attesa1_7','attesa2_7','attesa1_8'].map(n=>SERVER+'/video/'+n+'.mp4');
+  POOL.sfondoVuoto  = [SERVER+'/video/sfondo vuoto.mp4'];
+  POOL.offesaLieve  = [SERVER+'/video/offesa lieve.mp4'];
+  POOL.offesaGrave  = [SERVER+'/video/offesa grave.mp4'];
+  POOL.offesaSeNeVa = [SERVER+'/video/offesa e se ne va.mp4'];
 }
+
+let _lastRand = {};
 const rand = (a, key='default') => {
-  if (a.length <= 1) return a[0];
+  if (!a || a.length === 0) return null;
+  if (a.length === 1) return a[0];
   let idx, tries = 0;
   do { idx = Math.floor(Math.random()*a.length); tries++; }
   while (a[idx] === _lastRand[key] && tries < 5);
@@ -281,12 +186,15 @@ const vidB = document.getElementById('vidB');
 const logoF = document.getElementById('logoFallback');
 let activeSlot = null;
 let loopOn = false;
+let currentPool = null;
 
 function crossfadeTo(src, loop=true, onEnded=null) {
+  if (!src) return;
   const next = activeSlot==='A' ? vidB : vidA;
   const prev = activeSlot==='A' ? vidA  : vidB;
   next.src = src; next.loop = loop; next.muted = true; next.load();
   next.oncanplay = () => {
+    next.oncanplay = null;
     next.play().catch(()=>{});
     next.classList.remove('hidden'); next.classList.add('visible');
     logoF.classList.add('hidden');
@@ -299,11 +207,8 @@ function crossfadeTo(src, loop=true, onEnded=null) {
   };
 }
 
-let currentPool = null;
-
 function loopPool(pool) {
-  loopOn = true;
-  currentPool = pool;
+  loopOn = true; currentPool = pool;
   const curr = activeSlot === 'A' ? vidA : vidB;
   if (curr && !curr.paused && !curr.ended && curr.src) {
     curr.onended = () => { if (loopOn && currentPool === pool) _playNext(pool); };
@@ -314,9 +219,10 @@ function loopPool(pool) {
 
 function _playNext(pool) {
   if (!loopOn) return;
+  const src = rand(pool);
+  if (!src) return;
   const next = activeSlot==='A' ? vidB : vidA;
   const prev = activeSlot==='A' ? vidA  : vidB;
-  const src = rand(pool);
   next.src = src; next.loop = false; next.muted = true; next.load();
   next.oncanplay = () => {
     next.oncanplay = null;
@@ -324,10 +230,8 @@ function _playNext(pool) {
     next.classList.remove('hidden'); next.classList.add('visible');
     logoF.classList.add('hidden');
     if (activeSlot !== null) {
-      requestAnimationFrame(() => {
-        prev.classList.remove('visible'); prev.classList.add('hidden');
-        setTimeout(() => { prev.pause(); prev.src = ''; }, 1000);
-      });
+      prev.classList.remove('visible'); prev.classList.add('hidden');
+      setTimeout(()=>{ prev.pause(); prev.src=''; }, 1000);
     }
     activeSlot = activeSlot==='A' ? 'B' : 'A';
     next.onended = () => { if (loopOn && currentPool === pool) _playNext(pool); };
@@ -335,79 +239,57 @@ function _playNext(pool) {
 }
 function stopLoop() { loopOn = false; }
 
-// ── Audio foresta (MP3) ───────────────────────────────────────────
+// ── Audio foresta ─────────────────────────────────────────────────
 let forestAudio = null;
 function startForest() {
   if (forestAudio) return;
   try {
-    forestAudio = new Audio(SERVER + '/totem/forest.mp3');
-    forestAudio.loop = true;
-    forestAudio.volume = 0.25;
-    forestAudio.play().then(()=>console.log('✓ Foresta avviata')).catch(e=>console.error('✗ Foresta errore:', e));
+    forestAudio = new Audio(SERVER + '/audio/forest.mp3');
+    forestAudio.loop = true; forestAudio.volume = 0.25;
+    forestAudio.play().then(()=>console.log('✓ Foresta avviata')).catch(e=>console.log('Foresta errore:',e.message));
   } catch(e){}
 }
-
-// Pausa/riprendi quando app va in background
 document.addEventListener('visibilitychange', () => {
   if (!forestAudio) return;
   if (document.hidden) forestAudio.pause();
   else forestAudio.play().catch(()=>{});
 });
 
-// ── Avvio al tocco ────────────────────────────────────────────────
-// Legge URL tunnel aggiornato da GitHub Pages
+// ── Avvio ─────────────────────────────────────────────────────────
 async function caricaTunnelUrl() {
   try {
-    const base = 'https://fdnegozi-stack.github.io/lafataeildrago-backend/';
-    const r = await fetch(base + 'tunnel-url.json?t=' + Date.now());
+    const r = await fetch('https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url.json?t='+Date.now());
     const d = await r.json();
     if (d.url) { SERVER = d.url; console.log('✓ Tunnel URL:', SERVER); }
-    else console.log('tunnel-url.json senza url:', d);
-  } catch(e) { console.log('Errore caricaTunnelUrl:', e.message, '— uso fallback:', SERVER); }
+  } catch(e) { console.log('tunnel-url errore:', e.message, '— uso fallback'); }
 }
 
 async function avvia() {
   const o = document.getElementById('startOverlay');
   if (o) { o.style.opacity='0'; o.style.pointerEvents='none'; setTimeout(()=>o.remove(),1000); }
-
-  // Carica URL tunnel aggiornato prima di tutto
   await caricaTunnelUrl();
-
-  // Aggiorna pool video con nuovo SERVER
-  POOL.entrata = [SERVER+'/video/entrata.mp4'];
-  POOL.breve = ['attesa1_3','attesa2_3','attesa1_4','attesa1_5'].map(n=>SERVER+'/video/'+n+'.mp4');
-  POOL.lunga = ['attesa1_9','attesa2_9','attesa3_9','attesa4_9'].map(n=>SERVER+'/video/'+n+'.mp4');
-  POOL.parlato = [1,2,3].map(i=>SERVER+'/video/parlato normale '+i+'.mp4');
-
+  aggiornaPool();
   startForest();
-
-  // Mostra UI
   document.getElementById('ui').classList.add('show');
   document.getElementById('logoTop').classList.add('show');
-  document.getElementById('statusRing').classList.add('show');
   setStatus('idle');
-
-  // Precarica in background tutti i video di attesa
   setTimeout(() => {
-    [...POOL.lunga, ...POOL.breve].forEach(src => _fetchVideo(src));
+    [...POOL.lunga, ...POOL.breve].forEach(src => fetch(src).catch(()=>{}));
     console.log('📦 Precaricamento video avviato');
   }, 2000);
-
-  // Avvia video entrata
   crossfadeTo(POOL.entrata[0], false, ()=>loopPool(POOL.lunga));
 }
 
 // ── Stato ─────────────────────────────────────────────────────────
 let isBusy = false;
 const storiaCon = [];
-const ring   = document.getElementById('statusRing');
-const bubble = document.getElementById('responseBubble');
-const overlay= document.getElementById('listeningOverlay');
-const micBtn = document.getElementById('micBtn');
-const camInp = document.getElementById('cameraInput');
-
-const setStatus = s => { ring.className = ''; ring.classList.add('show', s); };
-const showText  = t => { /* testo nascosto nel mobile — solo audio */ };
+const ring    = document.getElementById('statusRing');
+const bubble  = document.getElementById('responseBubble');
+const overlay = document.getElementById('listeningOverlay');
+const micBtn  = document.getElementById('micBtn');
+const camInp  = document.getElementById('cameraInput');
+const setStatus = s => { ring.className=''; ring.classList.add('show',s); };
+const showText  = t => {};
 
 // ── Offese ────────────────────────────────────────────────────────
 const RE_GRAVE = /cazzo|vaffanculo|troia|puttana|bastarda|stronza|figlio di puttana|porco dio|porco cane|mannaggia|fuck|bitch|asshole|motherfucker|scheißkerl|scheiße|hurensohn|wichser|connard|enculé|salopard|hijo de puta|gilipollas|kurwa|jebany|whore|cunt|dickhead|bastard[oe]|pezzo di merda|vai a fanculo|fanculo|affanculo|skiderik|kæft|forbandede|jävla|helvete|fan ta dig|dra åt helvete/i;
@@ -416,8 +298,7 @@ let offesaCount = 0;
 function offesa(t) {
   if (RE_GRAVE.test(t)) { offesaCount++; return offesaCount >= 2 ? 'seNeVa' : 'grave'; }
   if (RE_MEDIA.test(t)) { offesaCount++; return 'media'; }
-  offesaCount = 0;
-  return null;
+  offesaCount = 0; return null;
 }
 
 // ── Fetch SSE ─────────────────────────────────────────────────────
@@ -437,7 +318,6 @@ async function fetchSSE(url, body, onToken, onDone, onError) {
 }
 
 // ── TTS + lipsync ─────────────────────────────────────────────────
-// Selezione pesata 40/40/20 per video parlato
 function randParlato() {
   const r = Math.random();
   if (r < 0.4) return POOL.parlato[0];
@@ -447,29 +327,24 @@ function randParlato() {
 
 async function speak(testo, tipo='normale') {
   setStatus('speak');
+
   if (tipo === 'foto') {
-    loopPool(POOL.lunga); // resta su video di attesa
+    // Frase foto: solo TTS audio, Tania resta sul video di attesa
+    loopPool(POOL.lunga);
     try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 60000);
-      console.log('🔊 TTS foto richiesta:', testo.substring(0,40));
       const r = await fetch(SERVER+'/api/tts', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ text:testo, lang:LANG }),
-        signal: ctrl.signal
+        body: JSON.stringify({ text:testo, lang:LANG })
       });
-      clearTimeout(t);
-      console.log('🔊 TTS foto risposta:', r.ok, r.status);
       if (r.ok) {
         const blob = await r.blob();
-        console.log('🔊 TTS blob size:', blob.size);
         if (blob.size > 0) {
           const url = URL.createObjectURL(blob);
           const aud = new Audio(url);
           await new Promise(resolve => {
             aud.onended = ()=>{ URL.revokeObjectURL(url); resolve(); };
             setTimeout(resolve, 30000);
-            aud.play().catch(e => { console.log('Audio play errore:', e); resolve(); });
+            aud.play().catch(()=>resolve());
           });
         }
       }
@@ -478,32 +353,37 @@ async function speak(testo, tipo='normale') {
     return;
   }
 
-  // Normale: prova lipsync poi fallback audio
+  // Risposta vocale: cerca video lipsync in cache, NON genera al volo
   stopLoop();
-  crossfadeTo(randParlato(), true);
+  crossfadeTo(randParlato(), true); // video parlato di attesa
 
-  // Prima prova lip-sync con timeout 5s
+  let videoUsato = false;
   try {
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 5000);
     const lsRes = await fetch(SERVER+'/api/tts-lipsync', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ text:testo, lang:LANG, tipo }),
+      body: JSON.stringify({ text:testo, lang:LANG, tipo, noGenerate: true }),
       signal: ctrl.signal
     });
     clearTimeout(timeout);
     const lsData = await lsRes.json();
-    console.log('🎬 tts-lipsync risposta:', JSON.stringify(lsData));
+    console.log('🎬 lipsync:', lsData.ok ? 'trovato' : 'non trovato', lsData.videoUrl||'');
+
     if (lsData.ok && lsData.videoUrl) {
-      console.log('🎬 Carico video:', SERVER+lsData.videoUrl);
+      // Video lipsync trovato — riproducilo
+      videoUsato = true;
       await new Promise(resolve => {
-        crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); setStatus('idle'); resolve(); });
+        crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{
+          loopPool(POOL.lunga); setStatus('idle'); resolve();
+        });
       });
       return;
     }
-  } catch(e) { console.log('🎬 tts-lipsync errore:', e.message); }
+  } catch(e) { console.log('lipsync errore:', e.message); }
 
-  // Solo audio TTS
+  // Fallback: solo audio TTS, Tania resta sul video parlato
+  console.log('🔊 Fallback TTS audio');
   try {
     const r = await fetch(SERVER+'/api/tts', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -513,52 +393,41 @@ async function speak(testo, tipo='normale') {
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const aud = new Audio(url);
-      // Torna ai video di attesa — niente video parlato senza audio sincronizzato
-      loopPool(POOL.lunga);
       await new Promise(resolve => {
         aud.onended = ()=>{ URL.revokeObjectURL(url); resolve(); };
         setTimeout(resolve, 30000);
-        aud.play();
+        aud.play().catch(()=>resolve());
       });
-      setStatus('idle');
-      return;
     }
-  } catch(e){}
+  } catch(e) { console.log('TTS fallback errore:', e.message); }
   setStatus('idle');
   loopPool(POOL.lunga);
 }
 
 // ── Camera ────────────────────────────────────────────────────────
 function openCamera() { if (!isBusy) camInp.click(); }
-
-function chiudiPreview() {
-  document.getElementById('photoPreview').classList.remove('show');
-}
+function chiudiPreview() { document.getElementById('photoPreview').classList.remove('show'); }
 
 camInp.addEventListener('change', async () => {
   const file = camInp.files[0]; if (!file) return;
   isBusy=true; setStatus('think'); loopPool(POOL.lunga);
-  const prevDiv  = document.getElementById('photoPreview');
-  const prevImg  = document.getElementById('photoImg');
-  const prevRes  = document.getElementById('photoResult');
-  const prevNome = document.getElementById('photoNome');
+  const prevDiv   = document.getElementById('photoPreview');
+  const prevImg   = document.getElementById('photoImg');
+  const prevRes   = document.getElementById('photoResult');
+  const prevNome  = document.getElementById('photoNome');
   const prevPrezzo = document.getElementById('photoPrezzo');
   prevImg.src = URL.createObjectURL(file);
-  prevNome.textContent = '';
-  prevPrezzo.textContent = '';
+  prevNome.textContent = ''; prevPrezzo.textContent = '';
   prevDiv.classList.add('show');
-  prevRes.textContent = '🔍 Invio al server...';
+  prevRes.textContent = '🔍 Analisi...';
   try {
     const fd = new FormData(); fd.append('image', file);
-    prevRes.textContent = '🔍 Analisi CLIP...';
     const res = await fetch(SERVER+'/api/search', { method:'POST', body:fd });
-    prevRes.textContent = '';
     const data = await res.json();
-    console.log('📷 CLIP risposta:', JSON.stringify(data).substring(0, 200));
     const lista = data.results || data.risultati || [];
-    const SOGLIA_SIMILARITY = 0.70; // sotto questa soglia = non riconosciuto
+    const SOGLIA = 0.70;
     const top = lista.length > 0 ? lista[0] : null;
-    const riconosciuto = top && (top.similarity == null || top.similarity >= SOGLIA_SIMILARITY);
+    const riconosciuto = top && (top.similarity == null || top.similarity >= SOGLIA);
 
     if (riconosciuto) {
       top.nome = top.nome || top.descrizione || 'Prodotto';
@@ -566,163 +435,75 @@ camInp.addEventListener('change', async () => {
       prevPrezzo.textContent = top.prezzo ? `€ ${parseFloat(top.prezzo).toFixed(2)}` : '';
       prevRes.textContent = `sim: ${top.similarity != null ? (top.similarity*100).toFixed(0)+'%' : '?'}`;
       setStatus('speak');
-      loopPool(POOL.lunga); // Tania resta in attesa
+      loopPool(POOL.lunga);
 
       try {
-        // Aspetta le due frasi da Ollama (timeout 60s — genera 2 frasi in sequenza)
-        const ctrl3 = new AbortController();
-        const t3 = setTimeout(() => ctrl3.abort(), 60000);
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 60000);
         const r2 = await fetch(SERVER+'/api/avatar-response', {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ prodotto:top, lingua:LANG, mode:'mobile' }),
-          signal: ctrl3.signal
+          signal: ctrl.signal
         });
-        clearTimeout(t3);
-
+        clearTimeout(t);
         if (r2 && r2.ok) {
           const t2 = await r2.text();
           let frase1 = '', frase2 = '';
           for (const line of t2.split('\n')) {
             if (!line.startsWith('data: ')) continue;
-            try {
-              const j = JSON.parse(line.slice(6));
-              if (j.frase1) frase1 = j.frase1;
-              if (j.frase2) frase2 = j.frase2;
-              if (j.token) frase1 += j.token; // fallback token singolo
-            } catch {}
+            try { const j=JSON.parse(line.slice(6)); if(j.frase1) frase1=j.frase1; if(j.frase2) frase2=j.frase2; if(j.token) frase1+=j.token; } catch{}
           }
           console.log('📷 Frase1:', frase1.substring(0,60));
           console.log('📷 Frase2:', frase2.substring(0,60));
 
-          // Frase 1 — solo se lipsync già in cache (non genera Coqui al volo)
+          // Frase1: usa lipsync se in cache, altrimenti salta
           if (frase1.trim()) {
-            const crypto = await import('crypto').catch(()=>null);
-            // Controlla se audio già in cache
             const lsCheck = await fetch(SERVER+'/api/tts-lipsync', {
               method:'POST', headers:{'Content-Type':'application/json'},
-              body: JSON.stringify({ text: frase1.trim(), lang: LANG })
+              body: JSON.stringify({ text:frase1.trim(), lang:LANG, noGenerate:true })
             }).catch(()=>null);
             const lsData = lsCheck ? await lsCheck.json().catch(()=>({})) : {};
             if (lsData.ok && lsData.videoUrl) {
-              // Lipsync pronto — usa video
               await new Promise(resolve => {
                 stopLoop();
                 crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); resolve(); });
               });
             } else if (lsData.audioUrl) {
-              // Solo audio in cache — usa quello
               const aud = new Audio(SERVER + lsData.audioUrl);
-              await new Promise(resolve => {
-                aud.onended = resolve;
-                setTimeout(resolve, 30000);
-                aud.play().catch(()=>resolve());
-              });
+              await new Promise(resolve => { aud.onended=resolve; setTimeout(resolve,30000); aud.play().catch(()=>resolve()); });
             }
-            // Se niente in cache — salta frase1, passa direttamente a frase2
           }
 
-          // Frase 2 — prodotto specifico con zoom foto che copre il volto di Tania
+          // Frase2: zoom foto + TTS
           if (frase2.trim()) {
-            // Carica immagine pulita dal server
             const imgUrl = SERVER + '/img-locali/' + top.id + '.jpg';
             const imgTest = new Image();
-            await new Promise(resolve => {
-              imgTest.onload = resolve;
-              imgTest.onerror = resolve;
-              imgTest.src = imgUrl;
-              setTimeout(resolve, 2000);
-            });
+            await new Promise(resolve => { imgTest.onload=resolve; imgTest.onerror=resolve; imgTest.src=imgUrl; setTimeout(resolve,2000); });
             if (imgTest.complete && imgTest.naturalWidth > 0) {
-              prevImg.style.transition = 'opacity 0.4s';
-              prevImg.style.opacity = '0';
-              await new Promise(r => setTimeout(r, 400));
-              prevImg.src = imgUrl;
-              prevImg.style.opacity = '1';
+              prevImg.style.transition='opacity 0.4s'; prevImg.style.opacity='0';
+              await new Promise(r=>setTimeout(r,400));
+              prevImg.src=imgUrl; prevImg.style.opacity='1';
             }
-            // Zoom: copre metà superiore (dove si trova il volto di Tania)
-            prevDiv.style.transition = 'all 0.6s ease';
-            prevDiv.style.position = 'fixed';
-            prevDiv.style.top = '0';
-            prevDiv.style.left = '0';
-            prevDiv.style.width = '100vw';
-            prevDiv.style.height = '62vh';
-            prevDiv.style.bottom = 'auto';
-            prevDiv.style.transform = 'none';
-            prevDiv.style.borderRadius = '0 0 16px 16px';
-            prevDiv.style.zIndex = '11';
-            prevImg.style.width = '100%';
-            prevImg.style.height = '100%';
-            prevImg.style.objectFit = 'contain';
-            prevImg.style.background = 'rgba(0,0,0,0.95)';
-            await new Promise(r => setTimeout(r, 600));
+            prevDiv.style.cssText='transition:all 0.6s ease;position:fixed;top:0;left:0;width:100vw;height:62vh;bottom:auto;transform:none;border-radius:0 0 16px 16px;z-index:11';
+            prevImg.style.cssText='width:100%;height:100%;object-fit:contain;background:rgba(0,0,0,0.95)';
+            await new Promise(r=>setTimeout(r,600));
             await speak(frase2.trim(), 'foto');
           }
         }
-      } catch(e) {
-        console.log('📷 errore:', e.message);
-      }
+      } catch(e) { console.log('📷 errore avatar:', e.message); }
     } else {
-      const sim = top ? ` (${(top.similarity*100).toFixed(0)}%)` : '';
-      console.log('📷 Non riconosciuto' + sim);
-      prevRes.textContent = top ? `sim: ${(top.similarity*100).toFixed(0)}% — sotto soglia (${(SOGLIA_SIMILARITY*100).toFixed(0)}%)` : 'Nessun risultato';
-      const MSG = {
-        it: "L'articolo che hai fotografato non è in vendita... o forse... non l'ho riconosciuto?",
-        en: "The item you photographed isn't in stock... or maybe... I didn't recognize it?",
-        de: "Den fotografierten Artikel haben wir nicht... oder ich habe ihn nicht erkannt?",
-      };
-      const msgTesto = MSG[LANG] || MSG['en'];
-      loopPool(POOL.lunga); // resta in attesa, non mostrare video parlato
-      try {
-        const ctrl2 = new AbortController();
-        const t2 = setTimeout(() => ctrl2.abort(), 8000);
-        const r = await fetch(SERVER+'/api/tts', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ text: msgTesto, lang: LANG }),
-          signal: ctrl2.signal
-        });
-        clearTimeout(t2);
-        if (r.ok) {
-          const blob = await r.blob();
-          const url = URL.createObjectURL(blob);
-          const aud = new Audio(url);
-          aud.play();
-          await new Promise(res => {
-            aud.onended = () => { URL.revokeObjectURL(url); res(); };
-            setTimeout(res, 10000); // fallback se onended non scatta
-          });
-        }
-      } catch(e) { console.log('TTS non riconosciuto errore:', e.message); }
+      prevRes.textContent = top ? `sim: ${(top.similarity*100).toFixed(0)}% — sotto soglia` : 'Nessun risultato';
+      const MSG = { it:"Non ho riconosciuto l'articolo. Prova a fotografarlo da più vicino!", en:"I didn't recognize this item. Try taking a closer photo!", de:"Ich habe den Artikel nicht erkannt. Versuche ein näheres Foto!" };
+      await speak(MSG[LANG]||MSG.it, 'foto');
     }
-  } catch(e) { prevRes.textContent = 'Errore: ' + e.message; }
+  } catch(e) { prevRes.textContent = 'Errore: '+e.message; console.log('📷 errore:', e.message); }
   finally {
-    // Reset animazione foto
     const pd = document.getElementById('photoPreview');
-    if (pd) {
-      pd.style.transition = 'all 0.4s ease';
-      pd.style.position = 'fixed';
-      pd.style.top = 'auto';
-      pd.style.inset = '';
-      pd.style.width = '220px';
-      pd.style.height = '';
-      pd.style.bottom = '200px';
-      pd.style.left = '50%';
-      pd.style.transform = 'translateX(-50%)';
-      pd.style.borderRadius = '10px';
-      pd.style.zIndex = '15';
-      const pi = document.getElementById('photoImg');
-      if (pi) {
-        pi.style.width = '';
-        pi.style.height = '';
-        pi.style.objectFit = '';
-        pi.style.background = '';
-        pi.style.opacity = '1';
-        pi.style.transition = '';
-      }
-    }
-    isBusy = false;
-    setStatus('idle');
-    camInp.value = '';
-    loopPool(POOL.lunga); // video di attesa, NON parlato
+    if (pd) pd.style.cssText='';
+    const pi = document.getElementById('photoImg');
+    if (pi) pi.style.cssText='';
+    isBusy=false; setStatus('idle'); camInp.value='';
+    loopPool(POOL.lunga);
   }
 });
 
@@ -732,37 +513,30 @@ let rec = null;
 
 function startListening() {
   if (isBusy) return;
-  if (!SR) { showText('⚠️ Usa Chrome per il riconoscimento vocale.'); return; }
+  if (!SR) { alert('Usa Chrome per il riconoscimento vocale.'); return; }
   rec = new SR();
   rec.lang=LANG; rec.continuous=false; rec.interimResults=false; rec.maxAlternatives=1;
 
-  rec.onstart = () => {
-    isBusy=true; micBtn.classList.add('active');
-    overlay.classList.add('show'); setStatus('listen');
-    loopPool(POOL.lunga);
-  };
+  rec.onstart = () => { isBusy=true; micBtn.classList.add('active'); overlay.classList.add('show'); setStatus('listen'); loopPool(POOL.lunga); };
 
   rec.onresult = async event => {
     const testo = event.results[0][0].transcript.trim();
     overlay.classList.remove('show'); micBtn.classList.remove('active');
-    if (!testo||testo.length<2) { showText('Non ho capito. Riprova.'); isBusy=false; setStatus('idle'); return; }
+    if (!testo || testo.length < 2) { isBusy=false; setStatus('idle'); return; }
+    setStatus('think'); loopPool(POOL.lunga);
+    console.log('🎤 Trascritto:', testo);
 
-    setStatus('think');
-    loopPool(POOL.lunga); // mantieni video attivo durante elaborazione
-
+    // Controlla offese
     const off = offesa(testo);
     if (off) {
       stopLoop();
       if (off === 'seNeVa') {
-        // Tania se ne va — sfondo vuoto per 10 secondi poi torna
-        crossfadeTo(rand(POOL.offesaSeNeVa), false, ()=>{
-          crossfadeTo(rand(POOL.sfondoVuoto), true);
-          setTimeout(()=>loopPool(POOL.lunga), 10000);
-        });
+        crossfadeTo(rand(POOL.offesaSeNeVa), false, ()=>{ crossfadeTo(rand(POOL.sfondoVuoto),true); setTimeout(()=>loopPool(POOL.lunga),10000); });
       } else {
         const pool = off==='grave' ? POOL.offesaGrave : POOL.offesaLieve;
         crossfadeTo(rand(pool), false, ()=>loopPool(POOL.lunga));
       }
+      isBusy=false; setStatus('idle'); return;
     }
 
     storiaCon.push({ role:'user', content:testo });
@@ -770,30 +544,28 @@ function startListening() {
 
     let risposta = '';
     await fetchSSE(
-      SERVER+'/api/voice-answer', { text:testo, lang:LANG, mode:'mobile', storia:storiaCon.slice(-8) },
-      t => { risposta+=t; }, // no testo nel mobile
-      () => {
+      SERVER+'/api/voice-answer',
+      { text:testo, lang:LANG, mode:'mobile', storia:storiaCon.slice(-8) },
+      t => { risposta += t; },
+      async () => {
         storiaCon.push({ role:'assistant', content:risposta });
-        const isEnfasi = /harry potter|signore degli anelli|witcher|dungeons|esclusiv|novit/i.test(risposta);
-        speak(risposta, isEnfasi?'enfasi':'normale');
+        console.log('💬 Risposta:', risposta.substring(0,60));
+        await speak(risposta, 'normale');
+        isBusy=false; setStatus('idle');
       },
-      err => { showText('⚠️ '+err); }
+      err => { console.log('❌ Errore:', err); isBusy=false; setStatus('idle'); loopPool(POOL.lunga); }
     );
-    if (!risposta) showText('⚠️ Nessuna risposta dal server.');
-    isBusy=false; setStatus('idle');
   };
 
   rec.onerror = e => {
     overlay.classList.remove('show'); micBtn.classList.remove('active');
     isBusy=false; setStatus('idle'); loopPool(POOL.lunga);
-    if (e.error==='no-speech') showText('Non ho sentito. Riprova.');
-    else if (e.error==='not-allowed') showText('⚠️ Permesso microfono negato.');
-    else showText('Errore microfono. Riprova.');
+    if (e.error==='not-allowed') console.log('Permesso microfono negato.');
+    else console.log('Errore mic:', e.error);
   };
 
   rec.onend = () => {
     overlay.classList.remove('show'); micBtn.classList.remove('active');
-    if (isBusy) { isBusy=false; setStatus('idle'); }
   };
 
   rec.start();
