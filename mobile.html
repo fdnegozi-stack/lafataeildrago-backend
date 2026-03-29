@@ -267,6 +267,18 @@ async function caricaTunnelUrl() {
 async function avvia() {
   const o = document.getElementById('startOverlay');
   if (o) { o.style.opacity='0'; o.style.pointerEvents='none'; setTimeout(()=>o.remove(),1000); }
+
+  // Sblocca autoplay audio — richiede interazione utente
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    await ctx.resume();
+    // Riproduce silenzio per sbloccare audio su iOS/Android
+    const buf = ctx.createBuffer(1,1,22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf; src.connect(ctx.destination); src.start(0);
+    console.log('✓ Audio sbloccato');
+  } catch(e) { console.log('Audio unlock errore:', e.message); }
+
   await caricaTunnelUrl();
   aggiornaPool();
   startForest();
@@ -371,12 +383,24 @@ async function speak(testo, tipo='normale') {
     console.log('🎬 lipsync:', lsData.ok ? 'trovato' : 'non trovato', lsData.videoUrl||'');
 
     if (lsData.ok && lsData.videoUrl) {
-      // Video lipsync trovato — riproducilo CON audio
+      // Video lipsync trovato — usa elemento video dedicato CON audio
       videoUsato = true;
       await new Promise(resolve => {
-        crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{
+        const lsVid = document.createElement('video');
+        lsVid.src = SERVER + lsData.videoUrl;
+        lsVid.muted = false;
+        lsVid.playsInline = true;
+        lsVid.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:5;';
+        document.body.appendChild(lsVid);
+        lsVid.oncanplay = () => {
+          lsVid.play().catch(e => { console.log('lipsync play errore:', e.message); });
+        };
+        lsVid.onended = () => {
+          lsVid.remove();
           loopPool(POOL.lunga); setStatus('idle'); resolve();
-        }, true); // withAudio=true
+        };
+        lsVid.onerror = () => { lsVid.remove(); resolve(); };
+        setTimeout(() => { lsVid.remove(); resolve(); }, 30000);
       });
       return;
     }
@@ -514,6 +538,17 @@ let rec = null;
 function startListening() {
   if (isBusy) return;
   if (!SR) { alert('Usa Chrome per il riconoscimento vocale.'); return; }
+
+  // Sblocca audio ad ogni tap sul microfono
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    ctx.resume().then(() => {
+      const buf = ctx.createBuffer(1,1,22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf; src.connect(ctx.destination); src.start(0);
+    });
+  } catch(e) {}
+
   rec = new SR();
   rec.lang=LANG; rec.continuous=false; rec.interimResults=false; rec.maxAlternatives=1;
 
