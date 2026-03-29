@@ -244,7 +244,7 @@ let forestAudio = null;
 function startForest() {
   if (forestAudio) return;
   try {
-    forestAudio = new Audio(SERVER + '/audio/forest.mp3');
+    forestAudio = new Audio(SERVER + '/app/forest.mp3');
     forestAudio.loop = true; forestAudio.volume = 0.25;
     forestAudio.play().then(()=>console.log('✓ Foresta avviata')).catch(e=>console.log('Foresta errore:',e.message));
   } catch(e){}
