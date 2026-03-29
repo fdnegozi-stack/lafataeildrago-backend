@@ -188,11 +188,11 @@ let activeSlot = null;
 let loopOn = false;
 let currentPool = null;
 
-function crossfadeTo(src, loop=true, onEnded=null) {
+function crossfadeTo(src, loop=true, onEnded=null, withAudio=false) {
   if (!src) return;
   const next = activeSlot==='A' ? vidB : vidA;
   const prev = activeSlot==='A' ? vidA  : vidB;
-  next.src = src; next.loop = loop; next.muted = true; next.load();
+  next.src = src; next.loop = loop; next.muted = !withAudio; next.load();
   next.oncanplay = () => {
     next.oncanplay = null;
     next.play().catch(()=>{});
@@ -200,7 +200,7 @@ function crossfadeTo(src, loop=true, onEnded=null) {
     logoF.classList.add('hidden');
     if (activeSlot !== null) {
       prev.classList.remove('visible'); prev.classList.add('hidden');
-      setTimeout(()=>{ prev.pause(); prev.src=''; }, 500);
+      setTimeout(()=>{ prev.pause(); prev.src=''; prev.muted=true; }, 500);
     }
     activeSlot = activeSlot==='A' ? 'B' : 'A';
     if (!loop && onEnded) next.onended = onEnded;
@@ -371,12 +371,12 @@ async function speak(testo, tipo='normale') {
     console.log('🎬 lipsync:', lsData.ok ? 'trovato' : 'non trovato', lsData.videoUrl||'');
 
     if (lsData.ok && lsData.videoUrl) {
-      // Video lipsync trovato — riproducilo
+      // Video lipsync trovato — riproducilo CON audio
       videoUsato = true;
       await new Promise(resolve => {
         crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{
           loopPool(POOL.lunga); setStatus('idle'); resolve();
-        });
+        }, true); // withAudio=true
       });
       return;
     }
@@ -466,7 +466,7 @@ camInp.addEventListener('change', async () => {
             if (lsData.ok && lsData.videoUrl) {
               await new Promise(resolve => {
                 stopLoop();
-                crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); resolve(); });
+                crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); resolve(); }, true);
               });
             } else if (lsData.audioUrl) {
               const aud = new Audio(SERVER + lsData.audioUrl);
