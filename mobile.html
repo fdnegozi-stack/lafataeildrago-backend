@@ -493,13 +493,15 @@ async function speak(testo, tipo='normale') {
     });
     clearTimeout(timeout);
     const lsData = await lsRes.json();
+    console.log('🎬 tts-lipsync risposta:', JSON.stringify(lsData));
     if (lsData.ok && lsData.videoUrl) {
+      console.log('🎬 Carico video:', SERVER+lsData.videoUrl);
       await new Promise(resolve => {
         crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); setStatus('idle'); resolve(); });
       });
       return;
     }
-  } catch(e) {}
+  } catch(e) { console.log('🎬 tts-lipsync errore:', e.message); }
 
   // Solo audio TTS
   try {
