@@ -243,16 +243,40 @@ function stopLoop() { loopOn = false; }
 let forestAudio = null;
 function startForest() {
   if (forestAudio) return;
-  try {
-    forestAudio = new Audio(SERVER + '/app/forest.mp3');
-    forestAudio.loop = true; forestAudio.volume = 0.25;
-    forestAudio.play().then(()=>console.log('✓ Foresta avviata')).catch(e=>console.log('Foresta errore:',e.message));
-  } catch(e){}
+  let attempts = 0;
+  function tryLoad() {
+    attempts++;
+    try {
+      forestAudio = new Audio(SERVER + '/app/forest.mp3');
+      forestAudio.loop = true; forestAudio.volume = 0.25;
+      forestAudio.onerror = () => {
+        forestAudio = null;
+        if (attempts < 5) {
+          console.log(`Foresta retry ${attempts}...`);
+          setTimeout(tryLoad, 3000);
+        } else {
+          console.log('Foresta non disponibile');
+        }
+      };
+      forestAudio.play()
+        .then(()=>console.log('✓ Foresta avviata'))
+        .catch(e=>{ forestAudio=null; if(attempts<5) setTimeout(tryLoad,3000); });
+    } catch(e){ forestAudio=null; if(attempts<5) setTimeout(tryLoad,3000); }
+  }
+  tryLoad();
 }
 document.addEventListener('visibilitychange', () => {
   if (!forestAudio) return;
   if (document.hidden) forestAudio.pause();
   else forestAudio.play().catch(()=>{});
+});
+
+// Ferma tutto quando la pagina viene chiusa/nascosta
+window.addEventListener('pagehide', () => {
+  if (forestAudio) { forestAudio.pause(); forestAudio.src = ''; }
+});
+window.addEventListener('beforeunload', () => {
+  if (forestAudio) { forestAudio.pause(); forestAudio.src = ''; }
 });
 
 // ── Avvio ─────────────────────────────────────────────────────────
@@ -306,12 +330,7 @@ async function avvia() {
 
   if (!serverOnline) {
     console.log('⚠ Server non raggiungibile — modalità offline');
-    // Mostra sfondo vuoto con foresta
     startForest();
-    crossfadeTo(SERVER+'/video/sfondo vuoto.mp4', true);
-    // Nascondi pulsanti
-    document.getElementById('ui').style.opacity = '0';
-    document.getElementById('ui').style.pointerEvents = 'none';
     // Riprova ogni 30 secondi
     setTimeout(avvia, 30000);
     return;
