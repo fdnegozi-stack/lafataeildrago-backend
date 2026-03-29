@@ -373,13 +373,18 @@ async function fetchSSE(url, body, onToken, onDone, onError) {
   try {
     const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     const text = await res.text();
-    let full = '';
+    let full = '', videoHash = null;
     for (const line of text.split('\n')) {
       if (!line.startsWith('data: ')) continue;
-      try { const j=JSON.parse(line.slice(6)); if(j.token) full+=j.token; if(j.error){onError(j.error);return;} } catch(e){}
+      try {
+        const j = JSON.parse(line.slice(6));
+        if (j.token) full += j.token;
+        if (j.videoHash) videoHash = j.videoHash;
+        if (j.error) { onError(j.error); return; }
+      } catch(e){}
     }
-    if (full.trim()) { onToken(full); onDone(); return; }
-    try { const j=JSON.parse(text); const r=j.answer||j.text||''; if(r){onToken(r);onDone();return;} if(j.error){onError(j.error);return;} } catch(e){}
+    if (full.trim()) { onToken(full); onDone(videoHash); return; }
+    try { const j=JSON.parse(text); const r=j.answer||j.text||''; if(r){onToken(r);onDone(null);return;} if(j.error){onError(j.error);return;} } catch(e){}
     onError('Nessuna risposta');
   } catch(e) { onError(e.message); }
 }
@@ -392,7 +397,7 @@ function randParlato() {
   return POOL.parlato[2];
 }
 
-async function speak(testo, tipo='normale') {
+async function speak(testo, tipo='normale', videoHash=null) {
   setStatus('speak');
 
   if (tipo === 'foto') {
@@ -428,9 +433,13 @@ async function speak(testo, tipo='normale') {
   try {
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 5000);
+    // Usa videoHash dal server se disponibile, altrimenti manda il testo
+    const lsBody = videoHash
+      ? { hash: videoHash, lang: LANG, noGenerate: true }
+      : { text: testo, lang: LANG, tipo, noGenerate: true };
     const lsRes = await fetch(SERVER+'/api/tts-lipsync', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ text:testo, lang:LANG, tipo, noGenerate: true }),
+      body: JSON.stringify(lsBody),
       signal: ctrl.signal
     });
     clearTimeout(timeout);
@@ -639,10 +648,10 @@ function startListening() {
       SERVER+'/api/voice-answer',
       { text:testo, lang:LANG, mode:'mobile', storia:storiaCon.slice(-8) },
       t => { risposta += t; },
-      async () => {
+      async (videoHash) => {
         storiaCon.push({ role:'assistant', content:risposta });
         console.log('💬 Risposta:', risposta.substring(0,60));
-        await speak(risposta, 'normale');
+        await speak(risposta, 'normale', videoHash);
         isBusy=false; setStatus('idle');
       },
       err => { console.log('❌ Errore:', err); isBusy=false; setStatus('idle'); loopPool(POOL.lunga); }
