@@ -14,16 +14,21 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
 // ── File statici offline (video e audio per PWA senza server) ─────
-// Carica forest.mp3 e sfondo_vuoto.mp4 dalla root del repository
 // URL: /static/forest.mp3  e  /static/sfondo_vuoto.mp4
-app.use('/static', express.static(path.join(__dirname), {
-  setHeaders: (res, filePath) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    if (filePath.endsWith('.mp4')) res.setHeader('Content-Type', 'video/mp4');
-    if (filePath.endsWith('.mp3')) res.setHeader('Content-Type', 'audio/mpeg');
-  }
-}));
+app.use('/static', express.static(path.join(__dirname)));
+
+// Endpoint espliciti per i file media con headers corretti
+app.get('/static/forest.mp3', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'audio/mpeg');
+  res.sendFile(path.join(__dirname, 'forest.mp3'));
+});
+app.get('/static/sfondo_vuoto.mp4', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'video/mp4');
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.sendFile(path.join(__dirname, 'sfondo_vuoto.mp4'));
+});
 
 // Connessione PostgreSQL
 const pool = new Pool({
