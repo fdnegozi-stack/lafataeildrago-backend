@@ -96,16 +96,8 @@
 <div id="avatarFrame">
   <video class="vid-layer hidden" id="vidA" playsinline muted></video>
   <video class="vid-layer hidden" id="vidB" playsinline muted></video>
-  <!-- Video offline statico da GitHub Pages — già precaricato dal browser -->
-  <video id="vidOffline" class="vid-layer hidden" playsinline muted loop
-    src="https://lafataeildrago-backend-production.up.railway.app/static/sfondo_vuoto.mp4"
-    preload="auto"></video>
   <img id="logoFallback" src="logo.png" alt="Tania" style="object-fit:contain;padding:20%;"/>
 </div>
-<!-- Audio foresta offline statico da GitHub Pages -->
-<audio id="forestOffline" loop preload="auto"
-  src="https://lafataeildrago-backend-production.up.railway.app/static/forest.mp3"
-  style="display:none"></audio>
 
 <div id="logoTop"><img src="logo.png" alt="F&D"/></div>
 <div id="statusRing"></div>
@@ -249,11 +241,7 @@ function stopLoop() { loopOn = false; }
 
 // ── Audio foresta ─────────────────────────────────────────────────
 const GITHUB_BASE = 'https://fdnegozi-stack.github.io/lafataeildrago-backend';
-const STATIC_BASE = 'https://lafataeildrago-backend-production.up.railway.app/static'; // file offline su Railway (sempre online)
 let forestAudio = null;
-let offlineAttivo = false;
-
-// Avvia foresta dal server (online)
 function startForest() {
   if (forestAudio) return;
   let attempts = 0;
@@ -264,55 +252,19 @@ function startForest() {
       forestAudio.loop = true; forestAudio.volume = 0.25;
       forestAudio.onerror = () => {
         forestAudio = null;
-        if (attempts < 5) setTimeout(tryLoad, 3000);
-        else console.log('Foresta server non disponibile');
+        if (attempts < 5) {
+          console.log(`Foresta retry ${attempts}...`);
+          setTimeout(tryLoad, 3000);
+        } else {
+          console.log('Foresta non disponibile');
+        }
       };
       forestAudio.play()
-        .then(() => console.log('✓ Foresta avviata dal server'))
-        .catch(e => { forestAudio = null; if (attempts < 5) setTimeout(tryLoad, 3000); });
-    } catch(e) { forestAudio = null; if (attempts < 5) setTimeout(tryLoad, 3000); }
+        .then(()=>console.log('✓ Foresta avviata'))
+        .catch(e=>{ forestAudio=null; if(attempts<5) setTimeout(tryLoad,3000); });
+    } catch(e){ forestAudio=null; if(attempts<5) setTimeout(tryLoad,3000); }
   }
   tryLoad();
-}
-
-// Avvia modalità offline — usa elementi HTML statici già precaricati
-function avviaOffline() {
-  if (offlineAttivo) return;
-  offlineAttivo = true;
-  console.log('📺 Modalità offline — uso elementi statici GitHub Pages');
-
-  // Video offline — elemento già in pagina con src GitHub
-  const vo = document.getElementById('vidOffline');
-  if (vo) {
-    vo.classList.remove('hidden'); vo.classList.add('visible');
-    // Nascondi gli altri video attivi
-    ['vidA','vidB'].forEach(id => {
-      const v = document.getElementById(id);
-      if (v) { v.classList.remove('visible'); v.classList.add('hidden'); }
-    });
-    activeSlot = 'offline';
-    vo.play().then(() => console.log('✓ Video offline avviato'))
-             .catch(e => console.log('Video offline errore:', e.message));
-  }
-
-  // Audio foresta offline — elemento già in pagina con src GitHub
-  const fo = document.getElementById('forestOffline');
-  if (fo) {
-    fo.volume = 0.25;
-    fo.play().then(() => console.log('✓ Foresta offline avviata'))
-             .catch(e => console.log('Foresta offline errore:', e.message));
-  }
-}
-
-// Ferma modalità offline quando il server torna online
-function fermaOffline() {
-  if (!offlineAttivo) return;
-  offlineAttivo = false;
-  const vo = document.getElementById('vidOffline');
-  const fo = document.getElementById('forestOffline');
-  if (vo) { vo.pause(); vo.classList.remove('visible'); vo.classList.add('hidden'); }
-  if (fo) { fo.pause(); }
-  console.log('✓ Modalità offline disattivata');
 }
 document.addEventListener('visibilitychange', () => {
   if (!forestAudio) return;
@@ -378,14 +330,10 @@ async function avvia() {
   } catch(e) {}
 
   if (!serverOnline) {
-    console.log('⚠ Server non raggiungibile — modalità offline');
-    avviaOffline();
-    // Riprova connessione ogni 30 secondi
-    setTimeout(avvia, 30000);
+    console.log('⚠ Server non raggiungibile — redirect pagina offline');
+    window.location.href = 'https://eloquent-churros-926e95.netlify.app';
     return;
   }
-  // Torniamo online — ferma modalità offline e avvia normalmente
-  fermaOffline();
 
   startForest();
   document.getElementById('ui').classList.add('show');
