@@ -98,13 +98,13 @@
   <video class="vid-layer hidden" id="vidB" playsinline muted></video>
   <!-- Video offline statico da GitHub Pages — già precaricato dal browser -->
   <video id="vidOffline" class="vid-layer hidden" playsinline muted loop
-    src="https://fdnegozi-stack.github.io/lafataeildrago-backend/sfondo%20vuoto.mp4"
+    src="https://lafataeildrago-backend-production.up.railway.app/static/sfondo_vuoto.mp4"
     preload="auto"></video>
   <img id="logoFallback" src="logo.png" alt="Tania" style="object-fit:contain;padding:20%;"/>
 </div>
 <!-- Audio foresta offline statico da GitHub Pages -->
 <audio id="forestOffline" loop preload="auto"
-  src="https://fdnegozi-stack.github.io/lafataeildrago-backend/forest.mp3"
+  src="https://lafataeildrago-backend-production.up.railway.app/static/forest.mp3"
   style="display:none"></audio>
 
 <div id="logoTop"><img src="logo.png" alt="F&D"/></div>
@@ -249,6 +249,7 @@ function stopLoop() { loopOn = false; }
 
 // ── Audio foresta ─────────────────────────────────────────────────
 const GITHUB_BASE = 'https://fdnegozi-stack.github.io/lafataeildrago-backend';
+const STATIC_BASE = 'https://lafataeildrago-backend-production.up.railway.app/static'; // file offline su Railway (sempre online)
 let forestAudio = null;
 let offlineAttivo = false;
 
