@@ -240,18 +240,28 @@ function _playNext(pool) {
 function stopLoop() { loopOn = false; }
 
 // ── Audio foresta ─────────────────────────────────────────────────
+const GITHUB_BASE = 'https://fdnegozi-stack.github.io/lafataeildrago-backend';
 let forestAudio = null;
-function startForest() {
+function startForest(offline=false) {
   if (forestAudio) return;
-  let attempts = 0;
+  // In modalità offline usa GitHub Pages direttamente, altrimenti prova SERVER poi GitHub
+  const sources = offline
+    ? [GITHUB_BASE + '/forest.mp3']
+    : [SERVER + '/app/forest.mp3', GITHUB_BASE + '/forest.mp3'];
+  let srcIdx = 0, attempts = 0;
   function tryLoad() {
     attempts++;
     try {
-      forestAudio = new Audio(SERVER + '/app/forest.mp3');
+      forestAudio = new Audio(sources[srcIdx]);
       forestAudio.loop = true; forestAudio.volume = 0.25;
       forestAudio.onerror = () => {
         forestAudio = null;
-        if (attempts < 5) {
+        // Prova la sorgente successiva se disponibile
+        if (srcIdx < sources.length - 1) {
+          srcIdx++;
+          console.log(`Foresta: provo sorgente alternativa (${sources[srcIdx]})`);
+          setTimeout(tryLoad, 1000);
+        } else if (attempts < 5) {
           console.log(`Foresta retry ${attempts}...`);
           setTimeout(tryLoad, 3000);
         } else {
@@ -259,7 +269,7 @@ function startForest() {
         }
       };
       forestAudio.play()
-        .then(()=>console.log('✓ Foresta avviata'))
+        .then(()=>console.log('✓ Foresta avviata da:', sources[srcIdx]))
         .catch(e=>{ forestAudio=null; if(attempts<5) setTimeout(tryLoad,3000); });
     } catch(e){ forestAudio=null; if(attempts<5) setTimeout(tryLoad,3000); }
   }
@@ -330,7 +340,12 @@ async function avvia() {
 
   if (!serverOnline) {
     console.log('⚠ Server non raggiungibile — modalità offline');
-    startForest();
+    // Usa audio foresta da GitHub Pages (non dipende dal server)
+    startForest(true);
+    // Mostra video sfondo vuoto da GitHub Pages in loop
+    const offlineVideoUrl = GITHUB_BASE + '/sfondo%20vuoto.mp4';
+    crossfadeTo(offlineVideoUrl, true);
+    console.log('📺 Modalità offline: video da GitHub Pages');
     // Riprova ogni 30 secondi
     setTimeout(avvia, 30000);
     return;
@@ -359,13 +374,35 @@ const setStatus = s => { ring.className=''; ring.classList.add('show',s); };
 const showText  = t => {};
 
 // ── Offese ────────────────────────────────────────────────────────
-const RE_GRAVE = /cazzo|vaffanculo|troia|puttana|bastarda|stronza|figlio di puttana|porco dio|porco cane|mannaggia|fuck|bitch|asshole|motherfucker|scheißkerl|scheiße|hurensohn|wichser|connard|enculé|salopard|hijo de puta|gilipollas|kurwa|jebany|whore|cunt|dickhead|bastard[oe]|pezzo di merda|vai a fanculo|fanculo|affanculo|skiderik|kæft|forbandede|jävla|helvete|fan ta dig|dra åt helvete/i;
+// Normalizza testo prima del check:
+// converte forme censurate (es. "c***" → "cazzo") e rimuove asterischi residui
+function normalizzaOffesa(t) {
+  return t
+    .replace(/c[*•·_-]{3,}/gi,   'cazzo')
+    .replace(/f[*•·_-]{3,}/gi,   'fuck')
+    .replace(/b[*•·_-]{3,}/gi,   'bitch')
+    .replace(/s[*•·_-]{3,}/gi,   'stronza')
+    .replace(/p[*•·_-]{3,}/gi,   'puttana')
+    .replace(/v[*•·_-]{3,}/gi,   'vaffanculo')
+    .replace(/k[*•·_-]{3,}/gi,   'kurwa')
+    .replace(/m[*•·_-]{3,}/gi,   'merda')
+    .replace(/[*•·_-]{2,}/g,     ''); // rimuove asterischi residui
+}
+const RE_GRAVE = /\bcazzo\b|vaffanculo|\btroia\b|\bputtana\b|\bbastarda\b|\bstronza\b|figlio di puttana|porco dio|porco cane|porco miseria|\bmerda\b|pezzo di merda|vai a fanculo|\bfanculo\b|affanculo|\bfuck\b|\bbitch\b|\basshole\b|motherfucker|scheißkerl|\bscheiße\b|hurensohn|\bwichser\b|arschloch|\bschlampe\b|\bfotze\b|halt die fresse|\bconnard\b|\benculé\b|\bsalopard\b|\bputain\b|\bmerde\b|ta gueule|ferme la gueule|va te faire foutre|\bklootzak\b|godverdomme|\bkut\b(?! e)|\blul\b|\beikel\b|hijo de puta|\bgilipollas\b|\bkurwa\b|\bjebany\b|\bpierdol\b|skurwysyn|\bchuj\b|zajebany|\bkurva\b|\bpicsa\b|bassza meg|\bwhore\b|\bcunt\b|\bdickhead\b|bastard[oe]|\bskiderik\b|\bkæft\b|forbandede|\bjävla\b|\bhelvete\b|fan ta dig|dra åt helvete/i;
+const RE_SENEVA = /\bvattene\b|\bsparisci\b|shut up|tais.toi|halt die klappe|\bsmettila\b|lasciami in pace|leave me alone|lass mich in ruhe|fiche.moi la paix/i;
 const RE_MEDIA = /stupida|cretina|idiota|scema|deficiente|imbecille|rincoglionita|mongoloide|mentecatta|sciacquetta|ignorante|incompetente|inutile|schifo|disgustosa|orribile|brutta|antipatica|odiosa|insopportabile|ridicola|assurda|patetica|dumb|stupid|idiot|useless|ugly|hässlich|nutzlos|bescheuert|deppert|trottel|vollidiot|doofkopf|blöd|doof|dumm|idiote|nulle|laide|bête|conne|débile|abrutie|dom|lelijk|nutteloos|stom|idioot|sufferd|inútil|fea|głupia|głupi|beznadziejny|nieużyteczna|brzydka|debilna|hloupá|ošklivá|neschopná|pitomá|buta|csúnya|haszontalan|hülye|ostoba|grim|ubrugelig|fult|värdelös|fånig|idiotisk/i;
 let offesaCount = 0;
 function offesa(t) {
-  if (RE_GRAVE.test(t)) { offesaCount++; return offesaCount >= 2 ? 'seNeVa' : 'grave'; }
-  if (RE_MEDIA.test(t)) { offesaCount++; return 'media'; }
-  offesaCount = 0; return null;
+  const tn = normalizzaOffesa(t);
+  if (RE_GRAVE.test(tn)) {
+    offesaCount++;
+    return offesaCount >= 2 ? 'seNeVa' : 'grave';
+  }
+  // seNeVa solo se frase esplicitamente aggressiva E già preceduta da offesa
+  if (RE_SENEVA.test(tn) && offesaCount > 0) { return 'seNeVa'; }
+  if (RE_MEDIA.test(tn)) { offesaCount++; return 'media'; }
+  offesaCount = 0;
+  return null;
 }
 
 // ── Fetch SSE ─────────────────────────────────────────────────────
@@ -430,9 +467,20 @@ async function speak(testo, tipo='normale', videoHash=null) {
   loopPool(POOL.lunga); // resta sul video di attesa finché non trova lipsync
 
   let videoUsato = false;
+
+  // Se non abbiamo videoHash, il video non è in cache (risposta generata al volo da Ollama)
+  // → accoda per la routine notturna e vai subito al fallback TTS
+  if (!videoHash) {
+    console.log('🎬 Nessun videoHash — accodo per routine notturna, uso TTS fallback');
+    // Accoda silenziosamente per generazione notturna
+    fetch(SERVER+'/api/tts-lipsync', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text: testo, lang: LANG, noGenerate: false })
+    }).catch(()=>{});
+  } else {
   try {
     const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 5000);
+    const timeout = setTimeout(() => ctrl.abort(), 12000);
     // Usa videoHash dal server se disponibile, altrimenti manda il testo
     const lsBody = videoHash
       ? { hash: videoHash, lang: LANG, noGenerate: true }
@@ -471,6 +519,7 @@ async function speak(testo, tipo='normale', videoHash=null) {
       return;
     }
   } catch(e) { console.log('lipsync errore:', e.message); }
+  } // fine blocco videoHash
 
   // Fallback: solo audio TTS, Tania resta sul video parlato
   console.log('🔊 Fallback TTS audio');
