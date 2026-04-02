@@ -242,21 +242,25 @@ function stopLoop() { loopOn = false; }
 // ── Audio foresta ─────────────────────────────────────────────────
 const GITHUB_BASE = 'https://fdnegozi-stack.github.io/lafataeildrago-backend';
 let forestAudio = null;
+let forestAvviata = false;   // impedisce nuovi tentativi dopo che la foresta è partita o ha rinunciato
+let offlineVideoAvviato = false; // impedisce di rilanciare il video offline ad ogni retry
+
 function startForest(offline=false) {
-  if (forestAudio) return;
-  // In modalità offline usa GitHub Pages direttamente, altrimenti prova SERVER poi GitHub
+  if (forestAudio || forestAvviata) return;
+  forestAvviata = true; // blocca subito i retry di avvia()
+  // In modalità offline usa GitHub Pages, altrimenti prova SERVER poi GitHub
   const sources = offline
     ? [GITHUB_BASE + '/forest.mp3']
     : [SERVER + '/app/forest.mp3', GITHUB_BASE + '/forest.mp3'];
   let srcIdx = 0, attempts = 0;
   function tryLoad() {
     attempts++;
+    console.log(`Foresta tentativo ${attempts} da: ${sources[srcIdx]}`);
     try {
-      forestAudio = new Audio(sources[srcIdx]);
-      forestAudio.loop = true; forestAudio.volume = 0.25;
-      forestAudio.onerror = () => {
-        forestAudio = null;
-        // Prova la sorgente successiva se disponibile
+      const audio = new Audio(sources[srcIdx]);
+      audio.loop = true; audio.volume = 0.25;
+      audio.onerror = () => {
+        // Prova sorgente successiva se disponibile
         if (srcIdx < sources.length - 1) {
           srcIdx++;
           console.log(`Foresta: provo sorgente alternativa (${sources[srcIdx]})`);
@@ -265,13 +269,25 @@ function startForest(offline=false) {
           console.log(`Foresta retry ${attempts}...`);
           setTimeout(tryLoad, 3000);
         } else {
-          console.log('Foresta non disponibile');
+          console.log('Foresta non disponibile — rinuncio');
+          forestAvviata = false; // permetti nuovo tentativo al prossimo avvia()
         }
       };
-      forestAudio.play()
-        .then(()=>console.log('✓ Foresta avviata da:', sources[srcIdx]))
-        .catch(e=>{ forestAudio=null; if(attempts<5) setTimeout(tryLoad,3000); });
-    } catch(e){ forestAudio=null; if(attempts<5) setTimeout(tryLoad,3000); }
+      audio.play()
+        .then(() => {
+          forestAudio = audio; // assegna solo quando parte davvero
+          console.log('✓ Foresta avviata da:', sources[srcIdx]);
+        })
+        .catch(e => {
+          console.log('Foresta play fallito:', e.message);
+          if (attempts < 5) setTimeout(tryLoad, 3000);
+          else forestAvviata = false;
+        });
+    } catch(e) {
+      console.log('Foresta errore:', e.message);
+      if (attempts < 5) setTimeout(tryLoad, 3000);
+      else forestAvviata = false;
+    }
   }
   tryLoad();
 }
@@ -340,16 +356,21 @@ async function avvia() {
 
   if (!serverOnline) {
     console.log('⚠ Server non raggiungibile — modalità offline');
-    // Usa audio foresta da GitHub Pages (non dipende dal server)
+    // Avvia foresta da GitHub Pages (una sola volta)
     startForest(true);
-    // Mostra video sfondo vuoto da GitHub Pages in loop
-    const offlineVideoUrl = GITHUB_BASE + '/sfondo%20vuoto.mp4';
-    crossfadeTo(offlineVideoUrl, true);
-    console.log('📺 Modalità offline: video da GitHub Pages');
-    // Riprova ogni 30 secondi
+    // Avvia video sfondo vuoto da GitHub Pages in loop (una sola volta)
+    if (!offlineVideoAvviato) {
+      offlineVideoAvviato = true;
+      const offlineVideoUrl = GITHUB_BASE + '/sfondo%20vuoto.mp4';
+      console.log('📺 Carico video offline:', offlineVideoUrl);
+      crossfadeTo(offlineVideoUrl, true);
+    }
+    // Riprova connessione ogni 30 secondi
     setTimeout(avvia, 30000);
     return;
   }
+  // Se torniamo online dopo essere stati offline, resetta i flag
+  offlineVideoAvviato = false;
 
   startForest();
   document.getElementById('ui').classList.add('show');
