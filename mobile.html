@@ -240,8 +240,64 @@ function _playNext(pool) {
 function stopLoop() { loopOn = false; }
 
 // ── Audio foresta ─────────────────────────────────────────────────
-const GITHUB_BASE = 'https://fdnegozi-stack.github.io/lafataeildrago-backend';
 let forestAudio = null;
+
+// ── Frasi di attesa ───────────────────────────────────────────────
+const FRASI_ATTESA = {
+  it: [
+    'Vediamo cosa posso trovare...',
+    'Un momento, sto cercando...',
+    'Sto consultando il mio grimorio...',
+    'Un istante di magia...',
+    'Lasciami scorrere tra le pagine del catalogo...',
+    'Hmm, interessante... un attimo...',
+  ],
+  en: ['Let me check for you...','One moment, searching...','Let me consult my magical catalogue...'],
+  de: ['Einen Moment bitte...','Ich schaue kurz nach...','Lass mich im Katalog suchen...'],
+  fr: ['Un instant, je cherche...','Laissez-moi vérifier...','Je consulte mon catalogue magique...'],
+  es: ['Un momento, buscando...','Déjame comprobar...','Consultando mi catálogo mágico...'],
+  nl: ['Een moment, ik zoek...','Laat me even kijken...','Een magisch moment...'],
+  pl: ['Chwileczkę, szukam...','Pozwól, że sprawdzę...','Chwila magii...'],
+  cs: ['Chvilku, hledám...','Dovolte mi zkontrolovat...'],
+  hu: ['Egy pillanat, keresem...','Hadd nézzem meg...'],
+};
+
+// ── Video frasi di attesa pre-generate ───────────────────────────
+// I file sono in /cache/attesa/ con nomi fissi it_attesa_1..6
+const N_ATTESA = 3;
+let attesaTimer   = null;
+let attesaVideo   = null;
+let attesaPromise = null; // resolve chiamata quando il video finisce
+
+function avviaFraseAttesa() {
+  // Parte dopo 6 secondi — se la risposta arriva prima, non parte nulla
+  // Usa un video lipsync pre-generato (no TTS on-demand)
+  attesaTimer = setTimeout(() => {
+    const n   = Math.floor(Math.random() * N_ATTESA) + 1;
+    const src = SERVER + '/cache/attesa/it_attesa_' + n + '.mp4';
+    // Usa crossfadeTo con callback onEnded per sapere quando il video finisce
+    attesaPromise = new Promise(resolve => {
+      crossfadeTo(src, false, () => {
+        attesaVideo = null;
+        resolve();
+        // Dopo la frase di attesa torna al loop di attesa
+        loopPool(POOL.lunga);
+      }, true); // withAudio=true per sentire l'audio
+      attesaVideo = true; // segnale che il video è partito
+    });
+  }, 6000);
+}
+
+async function fermaFraseAttesa() {
+  if (attesaTimer) { clearTimeout(attesaTimer); attesaTimer = null; }
+  // Se il video di attesa è già partito, aspetta che finisca (non si interrompe a metà)
+  if (attesaVideo && attesaPromise) {
+    await attesaPromise;
+  }
+  attesaVideo   = null;
+  attesaPromise = null;
+}
+
 function startForest() {
   if (forestAudio) return;
   let attempts = 0;
@@ -330,8 +386,10 @@ async function avvia() {
   } catch(e) {}
 
   if (!serverOnline) {
-    console.log('⚠ Server non raggiungibile — redirect pagina offline');
-    window.location.href = 'https://eloquent-churros-926e95.netlify.app';
+    console.log('⚠ Server non raggiungibile — modalità offline');
+    startForest();
+    // Riprova ogni 30 secondi
+    setTimeout(avvia, 30000);
     return;
   }
 
@@ -358,8 +416,9 @@ const setStatus = s => { ring.className=''; ring.classList.add('show',s); };
 const showText  = t => {};
 
 // ── Offese ────────────────────────────────────────────────────────
-// Normalizza testo prima del check:
-// converte forme censurate (es. "c***" → "cazzo") e rimuove asterischi residui
+// Normalizza testo prima del check offese:
+// rimuove asterischi di censura (es. "f***" → "f", poi matchato da pattern troncati)
+// e converte forme censurate comuni nel termine completo
 function normalizzaOffesa(t) {
   return t
     .replace(/c[*•·_-]{3,}/gi,   'cazzo')
@@ -369,24 +428,16 @@ function normalizzaOffesa(t) {
     .replace(/p[*•·_-]{3,}/gi,   'puttana')
     .replace(/v[*•·_-]{3,}/gi,   'vaffanculo')
     .replace(/k[*•·_-]{3,}/gi,   'kurwa')
-    .replace(/m[*•·_-]{3,}/gi,   'merda')
     .replace(/[*•·_-]{2,}/g,     ''); // rimuove asterischi residui
 }
-const RE_GRAVE = /\bcazzo\b|vaffanculo|\btroia\b|\bputtana\b|\bbastarda\b|\bstronza\b|figlio di puttana|porco dio|porco cane|porco miseria|\bmerda\b|pezzo di merda|vai a fanculo|\bfanculo\b|affanculo|\bfuck\b|\bbitch\b|\basshole\b|motherfucker|scheißkerl|\bscheiße\b|hurensohn|\bwichser\b|arschloch|\bschlampe\b|\bfotze\b|halt die fresse|\bconnard\b|\benculé\b|\bsalopard\b|\bputain\b|\bmerde\b|ta gueule|ferme la gueule|va te faire foutre|\bklootzak\b|godverdomme|\bkut\b(?! e)|\blul\b|\beikel\b|hijo de puta|\bgilipollas\b|\bkurwa\b|\bjebany\b|\bpierdol\b|skurwysyn|\bchuj\b|zajebany|\bkurva\b|\bpicsa\b|bassza meg|\bwhore\b|\bcunt\b|\bdickhead\b|bastard[oe]|\bskiderik\b|\bkæft\b|forbandede|\bjävla\b|\bhelvete\b|fan ta dig|dra åt helvete/i;
-const RE_SENEVA = /\bvattene\b|\bsparisci\b|shut up|tais.toi|halt die klappe|\bsmettila\b|lasciami in pace|leave me alone|lass mich in ruhe|fiche.moi la paix/i;
+const RE_GRAVE = /cazzo|vaffanculo|troia|puttana|bastarda|stronza|figlio di puttana|porco dio|porco cane|mannaggia|fuck|bitch|asshole|motherfucker|scheißkerl|scheiße|hurensohn|wichser|connard|enculé|salopard|hijo de puta|gilipollas|kurwa|jebany|whore|cunt|dickhead|bastard[oe]|pezzo di merda|vai a fanculo|fanculo|affanculo|skiderik|kæft|forbandede|jävla|helvete|fan ta dig|dra åt helvete/i;
 const RE_MEDIA = /stupida|cretina|idiota|scema|deficiente|imbecille|rincoglionita|mongoloide|mentecatta|sciacquetta|ignorante|incompetente|inutile|schifo|disgustosa|orribile|brutta|antipatica|odiosa|insopportabile|ridicola|assurda|patetica|dumb|stupid|idiot|useless|ugly|hässlich|nutzlos|bescheuert|deppert|trottel|vollidiot|doofkopf|blöd|doof|dumm|idiote|nulle|laide|bête|conne|débile|abrutie|dom|lelijk|nutteloos|stom|idioot|sufferd|inútil|fea|głupia|głupi|beznadziejny|nieużyteczna|brzydka|debilna|hloupá|ošklivá|neschopná|pitomá|buta|csúnya|haszontalan|hülye|ostoba|grim|ubrugelig|fult|värdelös|fånig|idiotisk/i;
 let offesaCount = 0;
 function offesa(t) {
   const tn = normalizzaOffesa(t);
-  if (RE_GRAVE.test(tn)) {
-    offesaCount++;
-    return offesaCount >= 2 ? 'seNeVa' : 'grave';
-  }
-  // seNeVa solo se frase esplicitamente aggressiva E già preceduta da offesa
-  if (RE_SENEVA.test(tn) && offesaCount > 0) { return 'seNeVa'; }
+  if (RE_GRAVE.test(tn)) { offesaCount++; return offesaCount >= 2 ? 'seNeVa' : 'grave'; }
   if (RE_MEDIA.test(tn)) { offesaCount++; return 'media'; }
-  offesaCount = 0;
-  return null;
+  offesaCount = 0; return null;
 }
 
 // ── Fetch SSE ─────────────────────────────────────────────────────
@@ -419,6 +470,7 @@ function randParlato() {
 }
 
 async function speak(testo, tipo='normale', videoHash=null) {
+  await fermaFraseAttesa(); // aspetta eventuale video di attesa prima di parlare
   setStatus('speak');
 
   if (tipo === 'foto') {
@@ -454,8 +506,10 @@ async function speak(testo, tipo='normale', videoHash=null) {
 
   // Se non abbiamo videoHash, il video non è in cache (risposta generata al volo da Ollama)
   // → accoda per la routine notturna e vai subito al fallback TTS
+  // → qui partiamo con la frase di attesa perché il TTS potrebbe richiedere qualche secondo
   if (!videoHash) {
     console.log('🎬 Nessun videoHash — accodo per routine notturna, uso TTS fallback');
+    avviaFraseAttesa(); // nessun video in cache → pronuncia frase di attesa durante TTS
     // Accoda silenziosamente per generazione notturna
     fetch(SERVER+'/api/tts-lipsync', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -682,12 +736,13 @@ function startListening() {
       { text:testo, lang:LANG, mode:'mobile', storia:storiaCon.slice(-8) },
       t => { risposta += t; },
       async (videoHash) => {
+        await fermaFraseAttesa(); // aspetta eventuale video di attesa prima di procedere
         storiaCon.push({ role:'assistant', content:risposta });
         console.log('💬 Risposta:', risposta.substring(0,60));
         await speak(risposta, 'normale', videoHash);
         isBusy=false; setStatus('idle');
       },
-      err => { console.log('❌ Errore:', err); isBusy=false; setStatus('idle'); loopPool(POOL.lunga); }
+      err => { fermaFraseAttesa(); console.log('❌ Errore:', err); isBusy=false; setStatus('idle'); loopPool(POOL.lunga); } // fermaFraseAttesa non attesa in caso di errore
     );
   };
 
