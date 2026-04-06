@@ -444,7 +444,7 @@ function offesa(t) {
 }
 
 // ── Fetch SSE ─────────────────────────────────────────────────────
-async function fetchSSE(url, body, onToken, onDone, onError) {
+async function fetchSSE(url, body, onToken, onDone, onError, _tentativo=0) {
   try {
     const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     const text = await res.text();
@@ -463,7 +463,15 @@ async function fetchSSE(url, body, onToken, onDone, onError) {
     if (full.trim()) { onToken(full); onDone(videoHash, serviceVideo, prodottiRisposta); return; }
     try { const j=JSON.parse(text); const r=j.answer||j.text||''; if(r){onToken(r);onDone(null);return;} if(j.error){onError(j.error);return;} } catch(e){}
     onError('Nessuna risposta');
-  } catch(e) { onError(e.message); }
+  } catch(e) {
+    // Retry automatico una volta dopo 2s (per disconnessioni temporanee del tunnel)
+    if (_tentativo === 0) {
+      console.warn('⚠ fetchSSE fallito, retry tra 2s:', e.message);
+      await new Promise(r => setTimeout(r, 2000));
+      return fetchSSE(url, body, onToken, onDone, onError, 1);
+    }
+    onError(e.message);
+  }
 }
 
 // ── TTS + lipsync ─────────────────────────────────────────────────
