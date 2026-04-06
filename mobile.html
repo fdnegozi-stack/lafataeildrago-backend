@@ -777,7 +777,7 @@ function startListening() {
       SERVER+'/api/voice-answer',
       { text:testo, lang:LANG, mode:'mobile', storia:storiaCon.slice(-8), negozio:NEGOZIO },
       t => { risposta += t; },
-      async (videoHash) => {
+      async (videoHash, serviceVideo, prodotti) => {
         await fermaFraseAttesa(); // aspetta eventuale video di attesa prima di procedere
         storiaCon.push({ role:'assistant', content:risposta });
         console.log('💬 Risposta:', risposta.substring(0,60));
