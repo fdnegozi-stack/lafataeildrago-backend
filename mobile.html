@@ -407,6 +407,9 @@ async function avvia() {
 // ── Stato ─────────────────────────────────────────────────────────
 let isBusy = false;
 const storiaCon = [];
+
+// ── Negozio corrente (da URL ?negozio=Ba o Bc) ──────────────────
+const NEGOZIO = new URLSearchParams(window.location.search).get('negozio') || '';
 const ring    = document.getElementById('statusRing');
 const bubble  = document.getElementById('responseBubble');
 const overlay = document.getElementById('listeningOverlay');
@@ -445,17 +448,19 @@ async function fetchSSE(url, body, onToken, onDone, onError) {
   try {
     const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     const text = await res.text();
-    let full = '', videoHash = null;
+    let full = '', videoHash = null, serviceVideo = null, prodottiRisposta = null;
     for (const line of text.split('\n')) {
       if (!line.startsWith('data: ')) continue;
       try {
         const j = JSON.parse(line.slice(6));
         if (j.token) full += j.token;
         if (j.videoHash) videoHash = j.videoHash;
+        if (j.serviceVideo) serviceVideo = j.serviceVideo;
+        if (j.prodotti) prodottiRisposta = j.prodotti;
         if (j.error) { onError(j.error); return; }
       } catch(e){}
     }
-    if (full.trim()) { onToken(full); onDone(videoHash); return; }
+    if (full.trim()) { onToken(full); onDone(videoHash, serviceVideo, prodottiRisposta); return; }
     try { const j=JSON.parse(text); const r=j.answer||j.text||''; if(r){onToken(r);onDone(null);return;} if(j.error){onError(j.error);return;} } catch(e){}
     onError('Nessuna risposta');
   } catch(e) { onError(e.message); }
@@ -467,6 +472,43 @@ function randParlato() {
   if (r < 0.4) return POOL.parlato[0];
   if (r < 0.8) return POOL.parlato[1];
   return POOL.parlato[2];
+}
+
+// ── Riproduce frase di servizio pre-generata + mostra prodotti ───
+async function riproduciServizio(serviceVideo, testo, prodotti) {
+  setStatus('speak');
+  await fermaFraseAttesa();
+  try {
+    const videoUrl = SERVER + '/cache/servizio/' + serviceVideo + '.mp4';
+    await crossfadeTo(videoUrl, false);
+    if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
+  } catch(e) {
+    console.warn('riproduciServizio fallback:', e.message);
+    await speak(testo, 'normale', null);
+  }
+}
+
+// ── Mostra lista prodotti trovati ────────────────────────────────
+function mostraProdotti(prodotti) {
+  let ov = document.getElementById('prodotti-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'prodotti-overlay';
+    ov.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:rgba(10,8,14,0.92);color:#e8e0d0;padding:12px 16px;font-family:Georgia,serif;z-index:999;border-top:2px solid #c9a84c;max-height:38vh;overflow-y:auto;';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = prodotti.map(p => `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #2a2030;">
+      ${p.foto_url ? `<img src="${p.foto_url}" style="width:52px;height:52px;object-fit:cover;border-radius:4px;flex-shrink:0;">` : ''}
+      <div>
+        <div style="font-size:13px;color:#e8e0d0;margin-bottom:2px;">${p.descrizione}</div>
+        <div style="font-size:12px;color:#c9a84c;">€${parseFloat(p.prezzo||0).toFixed(2)}${p.dimensioni ? ' &nbsp;·&nbsp; ' + p.dimensioni : ''}</div>
+        ${p.giacenzaProprio === 1 ? '<div style="font-size:11px;color:#e07070;margin-top:2px;">⚠ Ultimo pezzo disponibile</div>' : ''}
+      </div>
+    </div>
+  `).join('');
+  ov.style.display = 'block';
+  setTimeout(() => { ov.style.display = 'none'; }, 14000);
 }
 
 async function speak(testo, tipo='normale', videoHash=null) {
@@ -733,13 +775,17 @@ function startListening() {
     let risposta = '';
     await fetchSSE(
       SERVER+'/api/voice-answer',
-      { text:testo, lang:LANG, mode:'mobile', storia:storiaCon.slice(-8) },
+      { text:testo, lang:LANG, mode:'mobile', storia:storiaCon.slice(-8), negozio:NEGOZIO },
       t => { risposta += t; },
       async (videoHash) => {
         await fermaFraseAttesa(); // aspetta eventuale video di attesa prima di procedere
         storiaCon.push({ role:'assistant', content:risposta });
         console.log('💬 Risposta:', risposta.substring(0,60));
-        await speak(risposta, 'normale', videoHash);
+        if (serviceVideo) {
+          await riproduciServizio(serviceVideo, risposta, prodotti);
+        } else {
+          await speak(risposta, 'normale', videoHash);
+        }
         isBusy=false; setStatus('idle');
       },
       err => { fermaFraseAttesa(); console.log('❌ Errore:', err); isBusy=false; setStatus('idle'); loopPool(POOL.lunga); } // fermaFraseAttesa non attesa in caso di errore
