@@ -56,6 +56,45 @@
   #photoPrezzo { font-size: 0.9rem; color: #ffd700; font-weight: bold; padding: 2px 10px 6px; text-align: center; }
   #photoClose { position: absolute; top: 4px; right: 6px; color: #c8b060; font-size: 1.1rem; cursor: pointer; z-index: 16; }
   #cameraInput { display: none; }
+}
+
+/* ── Carosello prodotti ──────────────────────────────────────────── */
+#carosello-overlay {
+  display: none; position: fixed; inset: 0; z-index: 50;
+  background: rgba(0,0,0,0.9);
+  flex-direction: column; align-items: center; justify-content: center;
+}
+#carosello-overlay.show { display: flex; }
+#carosello-track {
+  width: 100%; display: flex; align-items: center;
+  justify-content: center; padding: 0 12px; box-sizing: border-box;
+}
+.car-card {
+  width: 82vw; max-width: 360px;
+  background: rgba(15,10,20,0.97);
+  border: 1px solid rgba(201,168,76,0.45);
+  border-radius: 14px; overflow: hidden; cursor: pointer;
+}
+.car-card img {
+  width: 100%; aspect-ratio: 1; object-fit: cover; background: #111; display: block;
+}
+.car-info { padding: 12px 14px; text-align: center; }
+.car-nome { font-size: 0.85rem; color: #e8e0d0; line-height: 1.35; margin-bottom: 5px; }
+.car-prezzo { font-size: 1.05rem; color: #c9a84c; font-weight: bold; }
+.car-dim { font-size: 0.72rem; color: #777; margin-top: 3px; }
+.car-ultimo { font-size: 0.72rem; color: #e07070; margin-top: 4px; }
+#carosello-frecce {
+  display: flex; gap: 48px; margin-top: 18px; align-items: center;
+}
+.car-freccia {
+  font-size: 2.4rem; color: rgba(201,168,76,0.65);
+  cursor: pointer; user-select: none; padding: 8px 14px;
+}
+#carosello-indice { font-size: 0.82rem; color: rgba(201,168,76,0.55); min-width: 55px; text-align: center; }
+#carosello-chiudi {
+  position: absolute; top: 18px; right: 18px;
+  color: rgba(201,168,76,0.65); font-size: 1.6rem; cursor: pointer; z-index: 51; padding: 8px;
+}
 </style>
 <!-- Debug console — rimuovere prima del go-live -->
 <style>
@@ -496,27 +535,98 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
   }
 }
 
-// ── Mostra lista prodotti trovati ────────────────────────────────
+// ── Carosello prodotti ───────────────────────────────────────────
+let _carProdotti = [], _carIdx = 0, _carSwipeX = null;
+
 function mostraProdotti(prodotti) {
-  let ov = document.getElementById('prodotti-overlay');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = 'prodotti-overlay';
-    ov.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:rgba(10,8,14,0.92);color:#e8e0d0;padding:12px 16px;font-family:Georgia,serif;z-index:999;border-top:2px solid #c9a84c;max-height:38vh;overflow-y:auto;';
-    document.body.appendChild(ov);
-  }
-  ov.innerHTML = prodotti.map(p => `
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #2a2030;">
-      ${p.foto_url ? `<img src="${p.foto_url}" style="width:52px;height:52px;object-fit:cover;border-radius:4px;flex-shrink:0;">` : ''}
-      <div>
-        <div style="font-size:13px;color:#e8e0d0;margin-bottom:2px;">${p.descrizione}</div>
-        <div style="font-size:12px;color:#c9a84c;">€${parseFloat(p.prezzo||0).toFixed(2)}${p.dimensioni ? ' &nbsp;·&nbsp; ' + p.dimensioni : ''}</div>
-        ${p.giacenzaProprio === 1 ? '<div style="font-size:11px;color:#e07070;margin-top:2px;">⚠ Ultimo pezzo disponibile</div>' : ''}
+  if (!prodotti || !prodotti.length) return;
+  apriCarosello(prodotti);
+}
+
+function apriCarosello(prodotti) {
+  _carProdotti = prodotti;
+  _carIdx = 0;
+  _renderCar();
+  const ov = document.getElementById('carosello-overlay');
+  ov.classList.add('show');
+  ov.addEventListener('touchstart', _carTouchStart, { passive: true });
+  ov.addEventListener('touchend',   _carTouchEnd,   { passive: true });
+  // Click fuori dalla card → chiudi
+  ov.onclick = (e) => { if (e.target === ov) chiudiCarosello(); };
+}
+
+function chiudiCarosello() {
+  const ov = document.getElementById('carosello-overlay');
+  ov.classList.remove('show');
+  ov.removeEventListener('touchstart', _carTouchStart);
+  ov.removeEventListener('touchend',   _carTouchEnd);
+}
+
+function caroselloNext() {
+  if (!_carProdotti.length) return;
+  _carIdx = (_carIdx + 1) % _carProdotti.length;
+  _renderCar();
+}
+function caroselloPrev() {
+  if (!_carProdotti.length) return;
+  _carIdx = (_carIdx - 1 + _carProdotti.length) % _carProdotti.length;
+  _renderCar();
+}
+
+function _carTouchStart(e) { _carSwipeX = e.touches[0].clientX; }
+function _carTouchEnd(e) {
+  if (_carSwipeX === null) return;
+  const dx = e.changedTouches[0].clientX - _carSwipeX;
+  _carSwipeX = null;
+  if (dx < -45) caroselloNext();
+  else if (dx > 45) caroselloPrev();
+}
+
+function _renderCar() {
+  const p = _carProdotti[_carIdx];
+  if (!p) return;
+  const imgUrl = SERVER + '/img-locali/' + p.id + '.jpg';
+  const ultimo = p.giacenzaProprio === 1
+    ? '<div class="car-ultimo">⚠ Ultimo pezzo disponibile</div>' : '';
+  const dim = p.dimensioni
+    ? `<div class="car-dim">${p.dimensioni}</div>` : '';
+  document.getElementById('carosello-track').innerHTML = `
+    <div class="car-card" onclick="commentaArticolo(${_carIdx})">
+      <img src="${imgUrl}" alt="${p.descrizione}"
+        onerror="this.src='';this.style.minHeight='180px';this.style.background='#1a1520';">
+      <div class="car-info">
+        <div class="car-nome">${p.descrizione}</div>
+        <div class="car-prezzo">€${parseFloat(p.prezzo||0).toFixed(2)}</div>
+        ${dim}${ultimo}
       </div>
-    </div>
-  `).join('');
-  ov.style.display = 'block';
-  setTimeout(() => { ov.style.display = 'none'; }, 14000);
+    </div>`;
+  document.getElementById('carosello-indice').textContent =
+    `${_carIdx + 1} / ${_carProdotti.length}`;
+}
+
+async function commentaArticolo(idx) {
+  const p = _carProdotti[idx];
+  if (!p || isBusy) return;
+  isBusy = true;
+  const g   = p.giacenzaProprio || 0;
+  const tot = g + (p.giacenzaAltro || 0);
+  let audioId = null;
+  if (tot === 1 && g === 1) {
+    audioId = 'it_servizio_ultimo_pezzo';
+  } else if (tot === 1 && g === 0) {
+    audioId = NEGOZIO === 'Ba' ? 'it_servizio_ultimo_altro_costel' : 'it_servizio_ultimo_altro_aurora';
+  } else if (tot > 1 && g === 1) {
+    audioId = 'it_servizio_ultimo_pezzo';
+  } else if (g > 1) {
+    audioId = Math.random() < 0.5 ? 'it_servizio_niente_male' : 'it_servizio_ottima_scelta';
+  }
+  if (audioId) {
+    try {
+      const aud = new Audio(SERVER + '/cache/servizio/' + audioId + '.mp3');
+      await new Promise((res, rej) => { aud.onended = res; aud.onerror = rej; aud.play().catch(rej); });
+    } catch(e) { console.warn('commentaArticolo:', e.message); }
+  }
+  isBusy = false;
 }
 
 async function speak(testo, tipo='normale', videoHash=null) {
@@ -820,5 +930,16 @@ function cancelListening() {
   setStatus('idle'); isBusy=false; loopPool(POOL.lunga);
 }
 </script>
+<!-- ── Carosello prodotti ─────────────────────────────────────── -->
+<div id="carosello-overlay">
+  <span id="carosello-chiudi" onclick="chiudiCarosello()">✕</span>
+  <div id="carosello-track"></div>
+  <div id="carosello-frecce">
+    <span class="car-freccia" onclick="caroselloPrev()">‹</span>
+    <span id="carosello-indice">1 / 1</span>
+    <span class="car-freccia" onclick="caroselloNext()">›</span>
+  </div>
+</div>
+
 </body>
 </html>
