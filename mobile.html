@@ -340,24 +340,22 @@ window.addEventListener('beforeunload', () => {
 async function caricaTunnelUrl() {
   for (let attempt = 1; attempt <= 5; attempt++) {
     try {
-      const bust = '?t=' + Date.now() + '&r=' + Math.random();
-      const r = await fetch(
-        'https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url.json' + bust,
-        { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } }
-      );
+      const r = await fetch('https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url.json?t='+Date.now()+'&r='+Math.random(), {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      });
       const d = await r.json();
-      if (d.url) {
-        if (d.url !== SERVER) {
-          console.log('✓ Tunnel URL aggiornato:', d.url);
-        } else {
-          console.log('✓ Tunnel URL confermato:', d.url);
-        }
+      if (d.url && d.url !== SERVER) {
         SERVER = d.url;
+        console.log('✓ Tunnel URL:', SERVER);
+        return;
+      } else if (d.url) {
+        console.log('✓ Tunnel URL invariato:', SERVER);
         return;
       }
     } catch(e) {
       console.log(`tunnel-url tentativo ${attempt} fallito:`, e.message);
-      if (attempt < 5) await new Promise(r => setTimeout(r, 1500));
+      if (attempt < 5) await new Promise(r => setTimeout(r, 2000));
     }
   }
   console.log('⚠ Uso URL fallback:', SERVER);
@@ -377,31 +375,20 @@ async function avvia() {
     console.log('✓ Audio sbloccato');
   } catch(e) { console.log('Audio unlock errore:', e.message); }
 
-  // Prova a caricare il tunnel aggiornato — riprova 3 volte con pausa crescente
-  for (let t = 1; t <= 3; t++) {
-    await caricaTunnelUrl();
-    aggiornaPool();
-    // Verifica immediata che il server risponda
-    try {
-      const ping = await fetch(SERVER+'/api/ping', { signal: AbortSignal.timeout(4000), cache: 'no-store' });
-      if (ping.ok) break; // server raggiungibile, procedi
-    } catch(e) {}
-    if (t < 3) {
-      console.log(`⚠ Server non risponde con URL corrente, ricarico tunnel (tentativo ${t+1})...`);
-      await new Promise(r => setTimeout(r, 2000));
-    }
-  }
+  await caricaTunnelUrl();
+  aggiornaPool();
 
-  // Verifica finale raggiungibilità
+  // Verifica se il server è raggiungibile
   let serverOnline = false;
   try {
-    const ping = await fetch(SERVER+'/api/ping', { signal: AbortSignal.timeout(4000), cache: 'no-store' });
+    const ping = await fetch(SERVER+'/api/ping', { signal: AbortSignal.timeout(5000) });
     serverOnline = ping.ok;
   } catch(e) {}
 
   if (!serverOnline) {
     console.log('⚠ Server non raggiungibile — modalità offline');
     startForest();
+    // Riprova ogni 30 secondi
     setTimeout(avvia, 30000);
     return;
   }
@@ -496,17 +483,43 @@ function randParlato() {
 }
 
 // ── Riproduce frase di servizio pre-generata + mostra prodotti ───
+// Frasi di servizio che hanno solo audio (no video lipsync)
+const SERVIZIO_SOLO_AUDIO = new Set([
+  'it_servizio_niente_male', 'it_servizio_ottima_scelta',
+  'it_servizio_ecco_trovato', 'it_servizio_si_abbiamo',
+]);
+
 async function riproduciServizio(serviceVideo, testo, prodotti) {
   setStatus('speak');
   await fermaFraseAttesa();
-  try {
-    const videoUrl = SERVER + '/cache/servizio/' + serviceVideo + '.mp4';
-    await crossfadeTo(videoUrl, false);
-    if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
-  } catch(e) {
-    console.warn('riproduciServizio fallback:', e.message);
-    await speak(testo, 'normale', null);
+
+  // Se ha prodotti da mostrare, apri carosello PRIMA
+  if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
+
+  if (SERVIZIO_SOLO_AUDIO.has(serviceVideo)) {
+    // Solo audio — Tania resta nel loop di attesa
+    try {
+      const aud = new Audio(SERVER + '/cache/servizio/' + serviceVideo + '.mp3');
+      await new Promise((res, rej) => {
+        aud.onended = res;
+        aud.onerror = () => res(); // ignora errore audio
+        aud.play().catch(() => res());
+      });
+    } catch(e) { console.warn('riproduciServizio audio:', e.message); }
+  } else {
+    // Ha video lipsync — riproducilo
+    try {
+      await new Promise(resolve => {
+        stopLoop();
+        crossfadeTo(SERVER + '/cache/servizio/' + serviceVideo + '.mp4', false,
+          () => { loopPool(POOL.lunga); resolve(); }, true);
+      });
+    } catch(e) {
+      console.warn('riproduciServizio video fallback:', e.message);
+      loopPool(POOL.lunga);
+    }
   }
+  setStatus('idle');
 }
 
 // ── Mostra lista prodotti trovati ────────────────────────────────
