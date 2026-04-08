@@ -522,27 +522,97 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
   setStatus('idle');
 }
 
-// ── Mostra lista prodotti trovati ────────────────────────────────
+// ── Carosello prodotti ───────────────────────────────────────────
+let _carProdotti = [], _carIdx = 0, _carSwipeX = null;
+
 function mostraProdotti(prodotti) {
-  let ov = document.getElementById('prodotti-overlay');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = 'prodotti-overlay';
-    ov.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:rgba(10,8,14,0.92);color:#e8e0d0;padding:12px 16px;font-family:Georgia,serif;z-index:999;border-top:2px solid #c9a84c;max-height:38vh;overflow-y:auto;';
-    document.body.appendChild(ov);
-  }
-  ov.innerHTML = prodotti.map(p => `
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #2a2030;">
-      ${p.foto_url ? `<img src="${p.foto_url}" style="width:52px;height:52px;object-fit:cover;border-radius:4px;flex-shrink:0;">` : ''}
-      <div>
-        <div style="font-size:13px;color:#e8e0d0;margin-bottom:2px;">${p.descrizione}</div>
-        <div style="font-size:12px;color:#c9a84c;">€${parseFloat(p.prezzo||0).toFixed(2)}${p.dimensioni ? ' &nbsp;·&nbsp; ' + p.dimensioni : ''}</div>
-        ${p.giacenzaProprio === 1 ? '<div style="font-size:11px;color:#e07070;margin-top:2px;">⚠ Ultimo pezzo disponibile</div>' : ''}
+  if (!prodotti || !prodotti.length) return;
+  apriCarosello(prodotti);
+}
+
+function apriCarosello(prodotti) {
+  _carProdotti = prodotti;
+  _carIdx = 0;
+  _renderCar();
+  const ov = document.getElementById('carosello-overlay');
+  console.log('apriCarosello: ov trovato=', !!ov, 'n=', prodotti.length);
+  if (!ov) { console.warn('carosello-overlay NON nel DOM!'); return; }
+  ov.classList.add('show');
+  ov.addEventListener('touchstart', _carTouchStart, { passive: true });
+  ov.addEventListener('touchend',   _carTouchEnd,   { passive: true });
+  ov.onclick = (e) => { if (e.target === ov) chiudiCarosello(); };
+}
+
+function chiudiCarosello() {
+  const ov = document.getElementById('carosello-overlay');
+  if (!ov) return;
+  ov.classList.remove('show');
+  ov.removeEventListener('touchstart', _carTouchStart);
+  ov.removeEventListener('touchend',   _carTouchEnd);
+}
+
+function caroselloNext() {
+  if (!_carProdotti.length) return;
+  _carIdx = (_carIdx + 1) % _carProdotti.length;
+  _renderCar();
+}
+function caroselloPrev() {
+  if (!_carProdotti.length) return;
+  _carIdx = (_carIdx - 1 + _carProdotti.length) % _carProdotti.length;
+  _renderCar();
+}
+
+function _carTouchStart(e) { _carSwipeX = e.touches[0].clientX; }
+function _carTouchEnd(e) {
+  if (_carSwipeX === null) return;
+  const dx = e.changedTouches[0].clientX - _carSwipeX;
+  _carSwipeX = null;
+  if (dx < -45) caroselloNext();
+  else if (dx > 45) caroselloPrev();
+}
+
+function _renderCar() {
+  const track = document.getElementById('carosello-track');
+  const indice = document.getElementById('carosello-indice');
+  const p = _carProdotti[_carIdx];
+  if (!p || !track) return;
+  const imgUrl = SERVER + '/img-locali/' + p.id + '.jpg';
+  const ultimo = p.giacenzaProprio === 1 ? '<div class="car-ultimo">⚠ Ultimo pezzo disponibile</div>' : '';
+  const dim = p.dimensioni ? `<div class="car-dim">${p.dimensioni}</div>` : '';
+  track.innerHTML = `
+    <div class="car-card" onclick="commentaArticolo(${_carIdx})">
+      <img src="${imgUrl}" alt="${p.descrizione}"
+        onerror="this.src='';this.style.minHeight='180px';this.style.background='#1a1520';">
+      <div class="car-info">
+        <div class="car-nome">${p.descrizione}</div>
+        <div class="car-prezzo">€${parseFloat(p.prezzo||0).toFixed(2)}</div>
+        ${dim}${ultimo}
       </div>
-    </div>
-  `).join('');
-  ov.style.display = 'block';
-  setTimeout(() => { ov.style.display = 'none'; }, 14000);
+    </div>`;
+  if (indice) indice.textContent = `${_carIdx + 1} / ${_carProdotti.length}`;
+}
+
+async function commentaArticolo(idx) {
+  const p = _carProdotti[idx];
+  if (!p || isBusy) return;
+  isBusy = true;
+  const g   = p.giacenzaProprio || 0;
+  const tot = g + (p.giacenzaAltro || 0);
+  let audioId = null;
+  if (tot === 1 && g === 1)      audioId = 'it_servizio_ultimo_pezzo';
+  else if (tot === 1 && g === 0) audioId = NEGOZIO === 'Ba' ? 'it_servizio_ultimo_altro_costel' : 'it_servizio_ultimo_altro_aurora';
+  else if (tot > 1 && g === 1)   audioId = 'it_servizio_ultimo_pezzo';
+  else if (g > 1)                audioId = Math.random() < 0.5 ? 'it_servizio_niente_male' : 'it_servizio_ottima_scelta';
+  if (audioId) {
+    try {
+      const aud = new Audio(SERVER + '/cache/servizio/' + audioId + '.mp3');
+      await new Promise(res => { aud.onended = res; aud.onerror = () => res(); aud.play().catch(() => res()); });
+    } catch(e) { console.warn('commentaArticolo:', e.message); }
+  }
+  isBusy = false;
+}
+
+function _placeholder_mostraProdotti() { // vecchia versione rimossa
 }
 
 async function speak(testo, tipo='normale', videoHash=null) {
