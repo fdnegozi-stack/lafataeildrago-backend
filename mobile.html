@@ -532,17 +532,24 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
     } catch(e) { console.warn('riproduciServizio audio:', e.message); }
   } else {
     // Ha video lipsync — Tania parla, poi apre carosello alla fine
+    const videoUrl = SERVER + '/cache/servizio/' + serviceVideo + '.mp4';
+    console.log('🎬 riproduciServizio video:', videoUrl, 'prodotti:', prodotti?.length||0);
     try {
-      await new Promise(resolve => {
+      await new Promise((resolve, reject) => {
         stopLoop();
-        crossfadeTo(SERVER + '/cache/servizio/' + serviceVideo + '.mp4', false, () => {
+        crossfadeTo(videoUrl, false, () => {
+          console.log('🎬 video servizio terminato → apro carosello');
           loopPool(POOL.lunga);
-          // Apri carosello dopo che Tania ha finito di parlare
           if (prodotti && prodotti.length > 0) {
             setTimeout(() => mostraProdotti(prodotti), 300);
           }
           resolve();
         }, true);
+        // Timeout di sicurezza: se onEnded non scatta entro 30s apri comunque
+        setTimeout(() => {
+          if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
+          resolve();
+        }, 30000);
       });
     } catch(e) {
       console.warn('riproduciServizio video fallback:', e.message);
