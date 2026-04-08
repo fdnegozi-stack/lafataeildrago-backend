@@ -514,39 +514,40 @@ function randParlato() {
 
 // ── Riproduce frase di servizio pre-generata + mostra prodotti ───
 // Frasi di servizio che hanno solo audio (no video lipsync)
+// Solo audio: pronunciate col carosello già aperto
 const SERVIZIO_SOLO_AUDIO = new Set([
   'it_servizio_niente_male', 'it_servizio_ottima_scelta',
-  'it_servizio_ecco_trovato', 'it_servizio_si_abbiamo',
 ]);
 
 async function riproduciServizio(serviceVideo, testo, prodotti) {
   setStatus('speak');
   await fermaFraseAttesa();
 
-  // Se ha prodotti da mostrare, apri carosello PRIMA
-  if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
-
   if (SERVIZIO_SOLO_AUDIO.has(serviceVideo)) {
-    // Solo audio — Tania resta nel loop di attesa
+    // Solo audio — carosello già aperto, Tania resta nel loop
+    if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
     try {
       const aud = new Audio(SERVER + '/cache/servizio/' + serviceVideo + '.mp3');
-      await new Promise((res, rej) => {
-        aud.onended = res;
-        aud.onerror = () => res(); // ignora errore audio
-        aud.play().catch(() => res());
-      });
+      await new Promise(res => { aud.onended = res; aud.onerror = res; aud.play().catch(res); });
     } catch(e) { console.warn('riproduciServizio audio:', e.message); }
   } else {
-    // Ha video lipsync — riproducilo
+    // Ha video lipsync — Tania parla, poi apre carosello alla fine
     try {
       await new Promise(resolve => {
         stopLoop();
-        crossfadeTo(SERVER + '/cache/servizio/' + serviceVideo + '.mp4', false,
-          () => { loopPool(POOL.lunga); resolve(); }, true);
+        crossfadeTo(SERVER + '/cache/servizio/' + serviceVideo + '.mp4', false, () => {
+          loopPool(POOL.lunga);
+          // Apri carosello dopo che Tania ha finito di parlare
+          if (prodotti && prodotti.length > 0) {
+            setTimeout(() => mostraProdotti(prodotti), 300);
+          }
+          resolve();
+        }, true);
       });
     } catch(e) {
       console.warn('riproduciServizio video fallback:', e.message);
       loopPool(POOL.lunga);
+      if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
     }
   }
   setStatus('idle');
