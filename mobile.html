@@ -60,52 +60,71 @@
 <style>
 /* ── Carosello prodotti ──────────────────────────────────────── */
 #carosello-overlay {
-  display: none; position: fixed;
-  inset: 0; z-index: 200;
+  display: none; position: fixed; inset: 0; z-index: 200;
   background: transparent;
   flex-direction: column; align-items: center; justify-content: flex-start;
-  padding-top: 8vh;
+  padding-top: 6vh;
 }
 #carosello-overlay.show { display: flex; }
 #carosello-chiudi {
-  position: absolute; top: 12px; right: 16px;
-  color: rgba(201,168,76,0.85); font-size: 2rem;
+  position: absolute; top: 10px; right: 14px;
+  color: rgba(255,255,255,0.85); font-size: 2rem;
   cursor: pointer; z-index: 201; padding: 10px;
-  text-shadow: 0 0 8px rgba(0,0,0,0.9);
+  text-shadow: 0 0 10px rgba(0,0,0,1);
 }
+/* Track scorrevole con overflow hidden e padding per mostrare card laterali */
 #carosello-track {
-  width: 100%; display: flex; align-items: center;
-  justify-content: center; padding: 0 12px; box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
+/* Card centrale grande */
 .car-card {
-  width: 88vw; max-width: 400px;
-  background: rgba(8,5,15,0.82);
-  border: 1.5px solid rgba(201,168,76,0.55);
+  flex-shrink: 0;
+  width: 78vw; max-width: 340px;
+  background: rgba(8,5,15,0.88);
+  border: 1.5px solid rgba(201,168,76,0.6);
   border-radius: 16px; overflow: hidden; cursor: pointer;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+  transition: transform 0.3s ease;
 }
-.car-card img {
+/* Card laterali parziali (preview) */
+.car-card-peek {
+  flex-shrink: 0;
+  width: 12vw; max-width: 52px;
+  background: rgba(8,5,15,0.6);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 12px; overflow: hidden;
+  backdrop-filter: blur(4px);
+  opacity: 0.65;
+}
+.car-card img, .car-card-peek img {
   width: 100%; aspect-ratio: 1;
   object-fit: cover; background: #111; display: block;
 }
-.car-info { padding: 12px 14px; text-align: center; }
-.car-nome { font-size: 0.88rem; color: #e8e0d0; line-height: 1.35; margin-bottom: 5px; }
-.car-prezzo { font-size: 1.1rem; color: #c9a84c; font-weight: bold; }
-.car-dim { font-size: 0.72rem; color: #888; margin-top: 3px; }
-.car-ultimo { font-size: 0.72rem; color: #e07070; margin-top: 4px; }
+.car-info { padding: 10px 12px; text-align: center; }
+.car-nome { font-size: 0.84rem; color: #e8e0d0; line-height: 1.35; margin-bottom: 4px; }
+.car-prezzo { font-size: 1.05rem; color: #c9a84c; font-weight: bold; }
+.car-dim { font-size: 0.7rem; color: #888; margin-top: 3px; }
+.car-ultimo { font-size: 0.7rem; color: #e07070; margin-top: 4px; }
 #carosello-frecce {
-  display: flex; gap: 48px; margin-top: 14px; align-items: center;
+  display: flex; gap: 40px; margin-top: 12px; align-items: center;
 }
 .car-freccia {
-  font-size: 2.8rem; color: rgba(201,168,76,0.8);
-  cursor: pointer; user-select: none; padding: 8px 16px;
-  text-shadow: 0 0 8px rgba(0,0,0,0.9);
+  font-size: 2.6rem; color: rgba(255,255,255,0.8);
+  cursor: pointer; user-select: none; padding: 8px 14px;
+  text-shadow: 0 0 12px rgba(0,0,0,1);
 }
 #carosello-indice {
-  font-size: 0.85rem; color: rgba(201,168,76,0.65);
-  min-width: 60px; text-align: center;
-  text-shadow: 0 0 6px rgba(0,0,0,0.9);
+  font-size: 0.85rem; color: rgba(255,255,255,0.7);
+  min-width: 55px; text-align: center;
+  text-shadow: 0 0 8px rgba(0,0,0,1);
 }
 </style>
 <!-- Debug console — rimuovere prima del go-live -->
@@ -538,7 +557,6 @@ function randParlato() {
 // Frasi di servizio che hanno solo audio (no video lipsync)
 const SERVIZIO_SOLO_AUDIO = new Set([
   'it_servizio_niente_male', 'it_servizio_ottima_scelta',
-  'it_servizio_ecco_trovato', 'it_servizio_si_abbiamo',
 ]);
 
 async function riproduciServizio(serviceVideo, testo, prodotti) {
@@ -546,38 +564,35 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
   await fermaFraseAttesa();
 
   if (SERVIZIO_SOLO_AUDIO.has(serviceVideo)) {
-    // Solo audio — apri carosello subito, Tania resta nel loop
+    // Solo audio — libera microfono e apri carosello subito
+    isBusy = false; setStatus('idle');
     if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
     try {
       const aud = new Audio(SERVER + '/cache/servizio/' + serviceVideo + '.mp3');
       await new Promise(res => { aud.onended = res; aud.onerror = () => res(); aud.play().catch(() => res()); });
     } catch(e) { console.warn('riproduciServizio audio:', e.message); }
   } else {
-    // Ha video lipsync — prima Tania parla, poi carosello
+    // Ha video lipsync — Tania parla, poi apre carosello DOPO che video finisce
     const videoUrl = SERVER + '/cache/servizio/' + serviceVideo + '.mp4';
-    console.log('🎬 servizio video:', videoUrl, '| prodotti:', prodotti?.length || 0);
+    console.log('🎬 servizio video:', videoUrl, '| prodotti:', prodotti?.length||0);
     let risolto = false;
     const apriDopoVideo = () => {
       if (risolto) return; risolto = true;
+      console.log('🎬 apriDopoVideo');
       loopPool(POOL.lunga);
-      if (prodotti && prodotti.length > 0) {
-        console.log('🎬 fine video → apro carosello');
-        setTimeout(() => mostraProdotti(prodotti), 200);
-      }
+      isBusy = false; setStatus('idle');
+      if (prodotti && prodotti.length > 0) setTimeout(() => mostraProdotti(prodotti), 200);
     };
     try {
       await new Promise(resolve => {
         stopLoop();
         crossfadeTo(videoUrl, false, () => { apriDopoVideo(); resolve(); }, true);
-        // Timeout sicurezza 10s
-        setTimeout(() => { apriDopoVideo(); resolve(); }, 10000);
+        // Timeout sicurezza basato sulla durata del video (~5s per ecco_trovato)
+        // Usiamo 15s per sicurezza — il video dura molto meno
+        setTimeout(() => { console.log('🎬 timeout'); apriDopoVideo(); resolve(); }, 15000);
       });
-    } catch(e) {
-      console.warn('riproduciServizio fallback:', e.message);
-      apriDopoVideo();
-    }
+    } catch(e) { console.warn('riproduciServizio fallback:', e.message); apriDopoVideo(); }
   }
-  setStatus('idle');
 }
 
 // ── Carosello prodotti ───────────────────────────────────────────
@@ -632,22 +647,40 @@ function _carTouchEnd(e) {
 function _renderCar() {
   const track = document.getElementById('carosello-track');
   const indice = document.getElementById('carosello-indice');
+  if (!track) return;
+  const n = _carProdotti.length;
   const p = _carProdotti[_carIdx];
-  if (!p || !track) return;
+  if (!p) return;
+
+  // Card precedente (peek sinistra)
+  const iPrev = (_carIdx - 1 + n) % n;
+  const pPrev = n > 1 ? _carProdotti[iPrev] : null;
+  // Card successiva (peek destra)
+  const iNext = (_carIdx + 1) % n;
+  const pNext = n > 1 ? _carProdotti[iNext] : null;
+
+  const peekImg = (prod) => prod
+    ? `<div class="car-card-peek"><img src="${SERVER}/img-locali/${prod.id}.jpg" onerror="this.src='';"></div>`
+    : `<div class="car-card-peek" style="visibility:hidden"></div>`;
+
   const imgUrl = SERVER + '/img-locali/' + p.id + '.jpg';
-  const ultimo = p.giacenzaProprio === 1 ? '<div class="car-ultimo">⚠ Ultimo pezzo disponibile</div>' : '';
+  const ultimo = p.giacenzaProprio === 1 ? '<div class="car-ultimo">⚠ Ultimo pezzo</div>' : '';
   const dim = p.dimensioni ? `<div class="car-dim">${p.dimensioni}</div>` : '';
-  track.innerHTML = `
-    <div class="car-card" onclick="commentaArticolo(${_carIdx})">
+
+  track.innerHTML =
+    peekImg(pPrev) +
+    `<div class="car-card" onclick="commentaArticolo(${_carIdx})">
       <img src="${imgUrl}" alt="${p.descrizione}"
-        onerror="this.src='';this.style.minHeight='180px';this.style.background='#1a1520';">
+        onerror="this.src='';this.style.minHeight='200px';this.style.background='#1a1520';">
       <div class="car-info">
         <div class="car-nome">${p.descrizione}</div>
         <div class="car-prezzo">€${parseFloat(p.prezzo||0).toFixed(2)}</div>
         ${dim}${ultimo}
       </div>
-    </div>`;
-  if (indice) indice.textContent = `${_carIdx + 1} / ${_carProdotti.length}`;
+    </div>` +
+    peekImg(pNext);
+
+  if (indice) indice.textContent = `${_carIdx + 1} / ${n}`;
 }
 
 async function commentaArticolo(idx) {
@@ -865,7 +898,7 @@ camInp.addEventListener('change', async () => {
               await new Promise(r=>setTimeout(r,400));
               prevImg.src=imgUrl; prevImg.style.opacity='1';
             }
-            prevDiv.style.cssText='transition:all 0.6s ease;position:fixed;top:0;left:0;width:100vw;height:62vh;bottom:auto;transform:none;border-radius:0 0 16px 16px;z-index:210';
+            prevDiv.style.cssText='transition:all 0.6s ease;position:fixed;top:0;left:0;width:100vw;height:62vh;bottom:auto;transform:none;border-radius:0 0 16px 16px;z-index:11';
             prevImg.style.cssText='width:100%;height:100%;object-fit:contain;background:rgba(0,0,0,0.95)';
             await new Promise(r=>setTimeout(r,600));
             await speak(frase2.trim(), 'foto');
