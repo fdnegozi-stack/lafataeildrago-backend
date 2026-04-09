@@ -386,10 +386,11 @@ async function avvia() {
   } catch(e) {}
 
   if (!serverOnline) {
-    console.log('⚠ Server non raggiungibile — modalità offline');
+    window._avviaTentativo = (window._avviaTentativo || 0) + 1;
+    const delay = window._avviaTentativo <= 12 ? 5000 : 30000;
+    console.log(`⚠ Server non raggiungibile — riprovo tra ${delay/1000}s (tentativo ${window._avviaTentativo})`);
     startForest();
-    // Riprova ogni 30 secondi
-    setTimeout(avvia, 30000);
+    setTimeout(avvia, delay);
     return;
   }
 
@@ -493,30 +494,36 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
   setStatus('speak');
   await fermaFraseAttesa();
 
-  // Se ha prodotti da mostrare, apri carosello PRIMA
-  if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
-
   if (SERVIZIO_SOLO_AUDIO.has(serviceVideo)) {
-    // Solo audio — Tania resta nel loop di attesa
+    // Solo audio — apri carosello subito, Tania resta nel loop
+    if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
     try {
       const aud = new Audio(SERVER + '/cache/servizio/' + serviceVideo + '.mp3');
-      await new Promise((res, rej) => {
-        aud.onended = res;
-        aud.onerror = () => res(); // ignora errore audio
-        aud.play().catch(() => res());
-      });
+      await new Promise(res => { aud.onended = res; aud.onerror = () => res(); aud.play().catch(() => res()); });
     } catch(e) { console.warn('riproduciServizio audio:', e.message); }
   } else {
-    // Ha video lipsync — riproducilo
+    // Ha video lipsync — prima Tania parla, poi carosello
+    const videoUrl = SERVER + '/cache/servizio/' + serviceVideo + '.mp4';
+    console.log('🎬 servizio video:', videoUrl, '| prodotti:', prodotti?.length || 0);
+    let risolto = false;
+    const apriDopoVideo = () => {
+      if (risolto) return; risolto = true;
+      loopPool(POOL.lunga);
+      if (prodotti && prodotti.length > 0) {
+        console.log('🎬 fine video → apro carosello');
+        setTimeout(() => mostraProdotti(prodotti), 200);
+      }
+    };
     try {
       await new Promise(resolve => {
         stopLoop();
-        crossfadeTo(SERVER + '/cache/servizio/' + serviceVideo + '.mp4', false,
-          () => { loopPool(POOL.lunga); resolve(); }, true);
+        crossfadeTo(videoUrl, false, () => { apriDopoVideo(); resolve(); }, true);
+        // Timeout sicurezza 10s
+        setTimeout(() => { apriDopoVideo(); resolve(); }, 10000);
       });
     } catch(e) {
-      console.warn('riproduciServizio video fallback:', e.message);
-      loopPool(POOL.lunga);
+      console.warn('riproduciServizio fallback:', e.message);
+      apriDopoVideo();
     }
   }
   setStatus('idle');
