@@ -60,23 +60,53 @@
 <style>
 /* ── Carosello prodotti ──────────────────────────────────────── */
 #carosello-overlay {
-  display: none; position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,0.96);
-  flex-direction: column; align-items: center; justify-content: center;
+  display: none; position: fixed;
+  inset: 0; z-index: 200;
+  background: transparent;
+  flex-direction: column; align-items: center; justify-content: flex-start;
+  padding-top: 8vh;
 }
 #carosello-overlay.show { display: flex; }
-#carosello-chiudi { position: absolute; top: 18px; right: 18px; color: rgba(201,168,76,0.7); font-size: 1.8rem; cursor: pointer; z-index: 201; padding: 10px; }
-#carosello-track { width: 100%; display: flex; align-items: center; justify-content: center; padding: 0 12px; box-sizing: border-box; }
-.car-card { width: 82vw; max-width: 360px; background: rgba(15,10,20,0.97); border: 1px solid rgba(201,168,76,0.45); border-radius: 14px; overflow: hidden; cursor: pointer; }
-.car-card img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #111; display: block; }
+#carosello-chiudi {
+  position: absolute; top: 12px; right: 16px;
+  color: rgba(201,168,76,0.85); font-size: 2rem;
+  cursor: pointer; z-index: 201; padding: 10px;
+  text-shadow: 0 0 8px rgba(0,0,0,0.9);
+}
+#carosello-track {
+  width: 100%; display: flex; align-items: center;
+  justify-content: center; padding: 0 12px; box-sizing: border-box;
+}
+.car-card {
+  width: 88vw; max-width: 400px;
+  background: rgba(8,5,15,0.82);
+  border: 1.5px solid rgba(201,168,76,0.55);
+  border-radius: 16px; overflow: hidden; cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+}
+.car-card img {
+  width: 100%; aspect-ratio: 1;
+  object-fit: cover; background: #111; display: block;
+}
 .car-info { padding: 12px 14px; text-align: center; }
-.car-nome { font-size: 0.85rem; color: #e8e0d0; line-height: 1.35; margin-bottom: 5px; }
-.car-prezzo { font-size: 1.05rem; color: #c9a84c; font-weight: bold; }
-.car-dim { font-size: 0.72rem; color: #777; margin-top: 3px; }
+.car-nome { font-size: 0.88rem; color: #e8e0d0; line-height: 1.35; margin-bottom: 5px; }
+.car-prezzo { font-size: 1.1rem; color: #c9a84c; font-weight: bold; }
+.car-dim { font-size: 0.72rem; color: #888; margin-top: 3px; }
 .car-ultimo { font-size: 0.72rem; color: #e07070; margin-top: 4px; }
-#carosello-frecce { display: flex; gap: 48px; margin-top: 18px; align-items: center; }
-.car-freccia { font-size: 2.8rem; color: rgba(201,168,76,0.7); cursor: pointer; user-select: none; padding: 8px 16px; }
-#carosello-indice { font-size: 0.85rem; color: rgba(201,168,76,0.6); min-width: 60px; text-align: center; }
+#carosello-frecce {
+  display: flex; gap: 48px; margin-top: 14px; align-items: center;
+}
+.car-freccia {
+  font-size: 2.8rem; color: rgba(201,168,76,0.8);
+  cursor: pointer; user-select: none; padding: 8px 16px;
+  text-shadow: 0 0 8px rgba(0,0,0,0.9);
+}
+#carosello-indice {
+  font-size: 0.85rem; color: rgba(201,168,76,0.65);
+  min-width: 60px; text-align: center;
+  text-shadow: 0 0 6px rgba(0,0,0,0.9);
+}
 </style>
 <!-- Debug console — rimuovere prima del go-live -->
 <style>
@@ -508,6 +538,7 @@ function randParlato() {
 // Frasi di servizio che hanno solo audio (no video lipsync)
 const SERVIZIO_SOLO_AUDIO = new Set([
   'it_servizio_niente_male', 'it_servizio_ottima_scelta',
+  'it_servizio_ecco_trovato', 'it_servizio_si_abbiamo',
 ]);
 
 async function riproduciServizio(serviceVideo, testo, prodotti) {
@@ -515,8 +546,7 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
   await fermaFraseAttesa();
 
   if (SERVIZIO_SOLO_AUDIO.has(serviceVideo)) {
-    // Solo audio — apri carosello subito, libera microfono
-    isBusy = false; setStatus('idle');
+    // Solo audio — apri carosello subito, Tania resta nel loop
     if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
     try {
       const aud = new Audio(SERVER + '/cache/servizio/' + serviceVideo + '.mp3');
@@ -529,11 +559,9 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
     let risolto = false;
     const apriDopoVideo = () => {
       if (risolto) return; risolto = true;
-      console.log('🎬 apriDopoVideo chiamata');
       loopPool(POOL.lunga);
-      isBusy = false; setStatus('idle');
       if (prodotti && prodotti.length > 0) {
-        console.log('🎬 apro carosello con', prodotti.length, 'prodotti');
+        console.log('🎬 fine video → apro carosello');
         setTimeout(() => mostraProdotti(prodotti), 200);
       }
     };
@@ -541,15 +569,15 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
       await new Promise(resolve => {
         stopLoop();
         crossfadeTo(videoUrl, false, () => { apriDopoVideo(); resolve(); }, true);
-        // Timeout sicurezza 8s — apri carosello anche se video non finisce
-        setTimeout(() => { console.log('🎬 timeout sicurezza'); apriDopoVideo(); resolve(); }, 8000);
+        // Timeout sicurezza 10s
+        setTimeout(() => { apriDopoVideo(); resolve(); }, 10000);
       });
     } catch(e) {
       console.warn('riproduciServizio fallback:', e.message);
       apriDopoVideo();
     }
   }
-  // isBusy resettato in apriDopoVideo
+  setStatus('idle');
 }
 
 // ── Carosello prodotti ───────────────────────────────────────────
@@ -837,7 +865,7 @@ camInp.addEventListener('change', async () => {
               await new Promise(r=>setTimeout(r,400));
               prevImg.src=imgUrl; prevImg.style.opacity='1';
             }
-            prevDiv.style.cssText='transition:all 0.6s ease;position:fixed;top:0;left:0;width:100vw;height:62vh;bottom:auto;transform:none;border-radius:0 0 16px 16px;z-index:11';
+            prevDiv.style.cssText='transition:all 0.6s ease;position:fixed;top:0;left:0;width:100vw;height:62vh;bottom:auto;transform:none;border-radius:0 0 16px 16px;z-index:210';
             prevImg.style.cssText='width:100%;height:100%;object-fit:contain;background:rgba(0,0,0,0.95)';
             await new Promise(r=>setTimeout(r,600));
             await speak(frase2.trim(), 'foto');
