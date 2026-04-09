@@ -72,21 +72,14 @@
   padding: 8px; text-shadow: 0 2px 10px rgba(0,0,0,1);
 }
 #carosello-track {
-  width: 100%;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 0 20px 0 20px;
-  box-sizing: border-box;
-  overflow-x: scroll;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  width: 100%; display: flex; align-items: flex-start;
+  gap: 10px; padding: 0 20px; box-sizing: border-box;
+  overflow-x: scroll; scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
 }
 #carosello-track::-webkit-scrollbar { display: none; }
 .car-card {
-  flex-shrink: 0;
-  width: 68vw; max-width: 280px;
+  flex-shrink: 0; width: 68vw; max-width: 280px;
   scroll-snap-align: start;
   background: rgba(8,5,15,0.85);
   border: 1.5px solid rgba(201,168,76,0.5);
@@ -94,10 +87,7 @@
   backdrop-filter: blur(10px);
   box-shadow: 0 6px 24px rgba(0,0,0,0.8);
 }
-.car-card img {
-  width: 100%; aspect-ratio: 1;
-  object-fit: cover; background: #111; display: block;
-}
+.car-card img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #111; display: block; }
 .car-info { padding: 10px 12px; text-align: center; }
 .car-nome { font-size: 0.8rem; color: #e8e0d0; line-height: 1.3; margin-bottom: 4px; }
 .car-prezzo { font-size: 1rem; color: #c9a84c; font-weight: bold; }
@@ -106,7 +96,7 @@
 #carosello-frecce { display: none; }
 #carosello-indice {
   width: 100%; text-align: center; margin-top: 10px; padding: 0 20px;
-  font-size: 0.8rem; color: rgba(255,255,255,0.65);
+  font-size: 0.8rem; color: rgba(255,255,255,0.7);
   text-shadow: 0 1px 6px rgba(0,0,0,1); flex-shrink: 0;
 }
 </style>
@@ -352,7 +342,7 @@ async function fermaFraseAttesa() {
 }
 
 function startForest() {
-  if (forestAudio) return;
+  if (forestAudio && !forestAudio.paused) return; // già in riproduzione
   let attempts = 0;
   function tryLoad() {
     attempts++;
@@ -391,27 +381,29 @@ window.addEventListener('beforeunload', () => {
 
 // ── Avvio ─────────────────────────────────────────────────────────
 async function caricaTunnelUrl() {
-  for (let attempt = 1; attempt <= 5; attempt++) {
+  const TUNNEL_JSON = 'https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url.json';
+  // Tenta di caricare tunnel URL con timeout breve e cache busting
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const r = await fetch('https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url.json?t='+Date.now()+'&r='+Math.random(), {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 3000);
+      const r = await fetch(TUNNEL_JSON + '?t=' + Date.now() + '&r=' + Math.random(), {
         cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+        signal: ctrl.signal
       });
+      clearTimeout(t);
       const d = await r.json();
-      if (d.url && d.url !== SERVER) {
-        SERVER = d.url;
-        console.log('✓ Tunnel URL:', SERVER);
-        return;
-      } else if (d.url) {
-        console.log('✓ Tunnel URL invariato:', SERVER);
+      if (d.url) {
+        if (d.url !== SERVER) { SERVER = d.url; console.log('✓ Tunnel URL:', SERVER); }
+        else { console.log('✓ Tunnel URL invariato:', SERVER); }
         return;
       }
     } catch(e) {
-      console.log(`tunnel-url tentativo ${attempt} fallito:`, e.message);
-      if (attempt < 5) await new Promise(r => setTimeout(r, 2000));
+      if (attempt < 3) await new Promise(r => setTimeout(r, 1000));
     }
   }
-  console.log('⚠ Uso URL fallback:', SERVER);
+  console.log('⚠ Uso URL corrente:', SERVER);
 }
 
 async function avvia() {
@@ -440,8 +432,8 @@ async function avvia() {
 
   if (!serverOnline) {
     window._avviaTentativo = (window._avviaTentativo || 0) + 1;
-    const delay = window._avviaTentativo <= 12 ? 5000 : 30000;
-    console.log(`⚠ Server non raggiungibile — riprovo tra ${delay/1000}s (tentativo ${window._avviaTentativo})`);
+    const delay = window._avviaTentativo <= 6 ? 2000 : window._avviaTentativo <= 20 ? 5000 : 30000;
+    console.log('⚠ Server non raggiungibile — riprovo tra', delay/1000, 's');
     startForest();
     setTimeout(avvia, delay);
     return;
@@ -547,38 +539,29 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
   await fermaFraseAttesa();
 
   if (SERVIZIO_SOLO_AUDIO.has(serviceVideo)) {
-    // Solo audio — apri carosello subito, Tania resta nel loop
+    isBusy = false; setStatus('idle');
     if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
     try {
       const aud = new Audio(SERVER + '/cache/servizio/' + serviceVideo + '.mp3');
       await new Promise(res => { aud.onended = res; aud.onerror = () => res(); aud.play().catch(() => res()); });
-    } catch(e) { console.warn('riproduciServizio audio:', e.message); }
+    } catch(e) {}
   } else {
-    // Ha video lipsync — prima Tania parla, poi carosello
     const videoUrl = SERVER + '/cache/servizio/' + serviceVideo + '.mp4';
-    console.log('🎬 servizio video:', videoUrl, '| prodotti:', prodotti?.length || 0);
+    console.log('🎬 servizio video:', videoUrl, '| n prodotti:', prodotti?.length||0);
     let risolto = false;
     const apriDopoVideo = () => {
       if (risolto) return; risolto = true;
-      loopPool(POOL.lunga);
-      if (prodotti && prodotti.length > 0) {
-        console.log('🎬 fine video → apro carosello');
-        setTimeout(() => mostraProdotti(prodotti), 200);
-      }
+      loopPool(POOL.lunga); isBusy = false; setStatus('idle');
+      if (prodotti && prodotti.length > 0) setTimeout(() => mostraProdotti(prodotti), 200);
     };
     try {
       await new Promise(resolve => {
         stopLoop();
         crossfadeTo(videoUrl, false, () => { apriDopoVideo(); resolve(); }, true);
-        // Timeout sicurezza 10s
-        setTimeout(() => { apriDopoVideo(); resolve(); }, 10000);
+        setTimeout(() => { apriDopoVideo(); resolve(); }, 15000);
       });
-    } catch(e) {
-      console.warn('riproduciServizio fallback:', e.message);
-      apriDopoVideo();
-    }
+    } catch(e) { apriDopoVideo(); }
   }
-  setStatus('idle');
 }
 
 // ── Carosello prodotti ───────────────────────────────────────────
@@ -597,7 +580,6 @@ function apriCarosello(prodotti) {
   console.log('apriCarosello: ov trovato=', !!ov, 'n=', prodotti.length);
   if (!ov) { console.warn('carosello-overlay NON nel DOM!'); return; }
   ov.classList.add('show');
-  // Scroll nativo — niente gestori touch manuali
   ov.onclick = (e) => { if (e.target === ov) chiudiCarosello(); };
 }
 
@@ -633,14 +615,12 @@ function _renderCar() {
   const track = document.getElementById('carosello-track');
   const indice = document.getElementById('carosello-indice');
   if (!track) return;
-  // Renderizza tutte le card — lo scroll è nativo
   track.innerHTML = _carProdotti.map((p, i) => {
     const imgUrl = SERVER + '/img-locali/' + p.id + '.jpg';
     const ultimo = p.giacenzaProprio === 1 ? '<div class="car-ultimo">⚠ Ultimo pezzo</div>' : '';
     const dim = p.dimensioni ? `<div class="car-dim">${p.dimensioni}</div>` : '';
     return `<div class="car-card" onclick="commentaArticolo(${i})">
-      <img src="${imgUrl}" alt="${p.descrizione}"
-        onerror="this.src='';this.style.minHeight='180px';this.style.background='#1a1520';">
+      <img src="${imgUrl}" onerror="this.src='';this.style.minHeight='180px';this.style.background='#1a1520';">
       <div class="car-info">
         <div class="car-nome">${p.descrizione}</div>
         <div class="car-prezzo">€${parseFloat(p.prezzo||0).toFixed(2)}</div>
@@ -648,7 +628,7 @@ function _renderCar() {
       </div>
     </div>`;
   }).join('');
-  if (indice) indice.textContent = `${_carProdotti.length} articoli`;
+  if (indice) indice.textContent = _carProdotti.length + ' articoli trovati';
 }
 
 async function commentaArticolo(idx) {
