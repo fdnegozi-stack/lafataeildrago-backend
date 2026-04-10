@@ -73,11 +73,10 @@
   background: rgba(0,0,0,0.6); border-radius: 50%;
   width: 40px; height: 40px;
   display: flex; align-items: center; justify-content: center;
-  text-shadow: 0 1px 4px rgba(0,0,0,1);
 }
 #carosello-track {
   width: 100%; display: flex; align-items: flex-start;
-  gap: 12px; padding: 0 10vw 0 10vw; box-sizing: border-box;
+  gap: 12px; padding: 0 10vw; box-sizing: border-box;
   overflow-x: scroll; scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch; scrollbar-width: none;
 }
@@ -91,10 +90,7 @@
   backdrop-filter: blur(12px);
   box-shadow: 0 8px 32px rgba(0,0,0,0.85);
 }
-.car-card img {
-  width: 100%; aspect-ratio: 1;
-  object-fit: cover; background: #1a1520; display: block;
-}
+.car-card img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #1a1520; display: block; }
 .car-info { padding: 12px 14px; text-align: center; }
 .car-nome { font-size: 0.88rem; color: #e8e0d0; line-height: 1.35; margin-bottom: 5px; }
 .car-prezzo { font-size: 1.1rem; color: #c9a84c; font-weight: bold; }
@@ -458,6 +454,61 @@ async function avvia() {
 // ── Stato ─────────────────────────────────────────────────────────
 let isBusy = false;
 const storiaCon = [];
+let _ultimaAttivita = Date.now();
+
+// Reset storia dopo 60s di inattività (silenzio + niente scroll carosello)
+function aggiornaAttivita() {
+  _ultimaAttivita = Date.now();
+  // Se c'era un timer "vuoi vedere?" attivo, cancellalo (cliente ancora attivo)
+  if (_timerVuoiVedere) { clearTimeout(_timerVuoiVedere); _timerVuoiVedere = null; }
+}
+function checkResetStoria() {
+  if (Date.now() - _ultimaAttivita > 60000 && storiaCon.length > 0) {
+    console.log('⏱ Reset storia per inattività (60s)');
+    storiaCon.length = 0;
+    _categoriaUltimaRisposta = null;
+  }
+}
+
+// Timer per "vuoi vedere?" dopo risposta con >10 articoli
+let _timerVuoiVedere = null;
+let _categoriaUltimaRisposta = null;
+
+function avviaTimerVuoiVedere(categoria) {
+  if (_timerVuoiVedere) clearTimeout(_timerVuoiVedere);
+  _categoriaUltimaRisposta = categoria;
+  _timerVuoiVedere = setTimeout(async () => {
+    _timerVuoiVedere = null;
+    if (isBusy) return; // Tania sta già parlando
+    console.log('⏱ 5s silenzio dopo risposta generica — pronuncio vuoi vedere?');
+    isBusy = true; setStatus('speak');
+    await fermaFraseAttesa();
+    // Riproduci video lipsync "vuoi vedere?"
+    const vuoiUrl = SERVER + '/cache/servizio/it_servizio_vuoi_vedere.mp4';
+    const vuoiAudio = SERVER + '/cache/servizio/it_servizio_vuoi_vedere.mp3';
+    try {
+      const check = await fetch(vuoiUrl, { method: 'HEAD', signal: AbortSignal.timeout(2000) });
+      if (check.ok) {
+        await new Promise(resolve => {
+          stopLoop();
+          crossfadeTo(vuoiUrl, false, () => { loopPool(POOL.lunga); resolve(); }, true);
+          setTimeout(resolve, 10000);
+        });
+      } else {
+        const aud = new Audio(vuoiAudio);
+        await new Promise(res => { aud.onended = res; aud.onerror = () => res(); aud.play().catch(() => res()); });
+        loopPool(POOL.lunga);
+      }
+    } catch(e) {
+      loopPool(POOL.lunga);
+    }
+    isBusy = false; setStatus('idle');
+    // Attendi risposta del cliente — se dice sì mostra carosello
+    _attesaRispostaVuoiVedere = true;
+  }, 5000);
+}
+
+let _attesaRispostaVuoiVedere = false;
 
 // ── Negozio corrente (da URL ?negozio=Ba o Bc) ──────────────────
 const NEGOZIO = new URLSearchParams(window.location.search).get('negozio') || '';
@@ -537,12 +588,12 @@ function randParlato() {
 // Frasi di servizio che hanno solo audio (no video lipsync)
 const SERVIZIO_SOLO_AUDIO = new Set([
   'it_servizio_niente_male', 'it_servizio_ottima_scelta',
+
 ]);
 
 async function riproduciServizio(serviceVideo, testo, prodotti) {
   setStatus('speak');
   await fermaFraseAttesa();
-
   if (SERVIZIO_SOLO_AUDIO.has(serviceVideo)) {
     isBusy = false; setStatus('idle');
     if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
@@ -551,19 +602,14 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
       await new Promise(res => { aud.onended = res; aud.onerror = () => res(); aud.play().catch(() => res()); });
     } catch(e) {}
   } else {
-    // Video lipsync: Tania parla, poi carosello
     const videoUrl = SERVER + '/cache/servizio/' + serviceVideo + '.mp4';
     console.log('🎬 servizio video:', serviceVideo);
     let risolto = false;
     const apriDopoVideo = () => {
       if (risolto) return; risolto = true;
       loopPool(POOL.lunga); isBusy = false; setStatus('idle');
-      if (prodotti && prodotti.length > 0) {
-        console.log('🎬 apro carosello con', prodotti.length, 'prodotti');
-        setTimeout(() => mostraProdotti(prodotti), 300);
-      }
+      if (prodotti && prodotti.length > 0) setTimeout(() => mostraProdotti(prodotti), 300);
     };
-    // Prima prova a caricare il video — se non disponibile apri subito il carosello
     try {
       const check = await fetch(videoUrl, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
       if (!check.ok) throw new Error('video non disponibile');
@@ -573,7 +619,7 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
         setTimeout(() => { apriDopoVideo(); resolve(); }, 12000);
       });
     } catch(e) {
-      console.log('🎬 video servizio non disponibile — apro carosello direttamente');
+      console.log('🎬 video non trovato — carosello diretto');
       loopPool(POOL.lunga); isBusy = false; setStatus('idle');
       if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
     }
@@ -592,7 +638,7 @@ function apriCarosello(prodotti) {
   _carProdotti = prodotti; _carIdx = 0;
   _renderCar();
   const ov = document.getElementById('carosello-overlay');
-  if (!ov) { console.warn('carosello-overlay mancante'); return; }
+  if (!ov) return;
   ov.classList.add('show');
   ov.onclick = (e) => { if (e.target === ov) chiudiCarosello(); };
 }
@@ -616,7 +662,7 @@ function caroselloPrev() {
   _renderCar();
 }
 
-function _carTouchStart(e) { _carSwipeX = e.touches[0].clientX; }
+function _carTouchStart(e) { _carSwipeX = e.touches[0].clientX; aggiornaAttivita(); }
 function _carTouchEnd(e) {
   if (_carSwipeX === null) return;
   const dx = e.changedTouches[0].clientX - _carSwipeX;
@@ -625,24 +671,24 @@ function _carTouchEnd(e) {
   else if (dx > 45) caroselloPrev();
 }
 
+function _imgErr(el) { el.style.minHeight='200px'; el.style.background='#1a1520'; el.remove(); }
 function _renderCar() {
   const track = document.getElementById('carosello-track');
   const indice = document.getElementById('carosello-indice');
   if (!track) return;
   track.innerHTML = _carProdotti.map((p, i) => {
     const imgUrl = SERVER + '/img-locali/' + p.id + '.jpg';
-    const ultimo = p.giacenzaProprio === 1 ? '<div class="car-ultimo">⚠ Ultimo pezzo</div>' : '';
-    const dim = p.dimensioni ? `<div class="car-dim">${p.dimensioni}</div>` : '';
-    return `<div class="car-card" onclick="commentaArticolo(${i})">
-      <img src="${imgUrl}" onerror="this.style.minHeight='200px';this.style.background='#1a1520';this.remove();">
-      <div class="car-info">
-        <div class="car-nome">${p.descrizione}</div>
-        <div class="car-prezzo">€${parseFloat(p.prezzo||0).toFixed(2)}</div>
-        ${dim}${ultimo}
-      </div>
-    </div>`;
+    const ultimo = p.giacenzaProprio === 1 ? '<div class="car-ultimo">&#9888; Ultimo pezzo</div>' : '';
+    const dim = p.dimensioni ? '<div class="car-dim">' + p.dimensioni + '</div>' : '';
+    return '<div class="car-card" onclick="commentaArticolo(' + i + ')">' +
+      '<img src="' + imgUrl + '" onerror="_imgErr(this)">' +
+      '<div class="car-info">' +
+        '<div class="car-nome">' + p.descrizione + '</div>' +
+        '<div class="car-prezzo">&#8364;' + parseFloat(p.prezzo||0).toFixed(2) + '</div>' +
+        dim + ultimo +
+      '</div></div>';
   }).join('');
-  if (indice) indice.textContent = _carProdotti.length + ' articoli — scorri →';
+  if (indice) indice.textContent = _carProdotti.length + ' articoli &#8212; scorri &#8594;';
 }
 
 async function commentaArticolo(idx) {
@@ -912,6 +958,46 @@ function startListening() {
     if (!testo || testo.length < 2) { isBusy=false; setStatus('idle'); return; }
     setStatus('think'); loopPool(POOL.lunga);
     console.log('🎤 Trascritto:', testo);
+    checkResetStoria();
+    aggiornaAttivita();
+
+    // Se stavamo aspettando risposta a "vuoi vedere?" — intercetta sì/no
+    if (_attesaRispostaVuoiVedere) {
+      _attesaRispostaVuoiVedere = false;
+      const rispostaPos = testo.toLowerCase().match(/\b(sì|si|certo|ok|vai|dai|mostra|mostrami|yes|sure|ja|oui|sí|szí|ano|tak|igen|da|да)\b/i);
+      const rispostaNeg = testo.toLowerCase().match(/\b(no|nope|non|nein|niet|nem|nao|não)\b/i);
+      if (rispostaPos && !rispostaNeg && _categoriaUltimaRisposta) {
+        // Cliente dice sì → mostra carosello della categoria
+        console.log('✓ Cliente vuole vedere articoli di:', _categoriaUltimaRisposta);
+        isBusy = true;
+        try {
+          const r = await fetch(SERVER + '/api/voice-answer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: 'mostrami ' + _categoriaUltimaRisposta, lang: LANG, mode: 'mobile', storia: [], negozio: NEGOZIO })
+          });
+          const txt = await r.text();
+          let prodotti = null;
+          let serviceVideo = null;
+          for (const line of txt.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            try { const j = JSON.parse(line.slice(6)); if (j.prodotti) prodotti = j.prodotti; if (j.serviceVideo) serviceVideo = j.serviceVideo; } catch(e) {}
+          }
+          if (prodotti && prodotti.length > 0) {
+            await riproduciServizio(serviceVideo || 'it_servizio_ecco_trovato', '', prodotti);
+          }
+        } catch(e) { console.log('Errore carosello vuoi vedere:', e.message); }
+        _categoriaUltimaRisposta = null;
+        isBusy = false; setStatus('idle');
+        return; // Non processare oltre questa risposta
+      } else if (rispostaNeg) {
+        // Cliente dice no → ignora
+        _categoriaUltimaRisposta = null;
+        isBusy = false; setStatus('idle');
+        return;
+      }
+      // Altrimenti continua normalmente
+    }
 
     // Controlla offese
     const off = offesa(testo);
@@ -942,6 +1028,14 @@ function startListening() {
           await riproduciServizio(serviceVideo, risposta, prodotti);
         } else {
           await speak(risposta, 'normale', videoHash);
+          // Se la risposta era generica (>10 articoli, no carosello) avvia timer 5s
+          // Il server non manda serviceVideo in questo caso
+          // Avvia solo se c'è una categoria attiva riconoscibile nella risposta
+          const catInRisposta = ['Signore degli Anelli','Hobbit','Harry Potter','Game of Thrones',
+            'Eldoras','Fairydust','Kardùm','Alchemy Gothic','Nemesis Now','Veronese',
+            'Anne Stokes','Paolo Chiari','Quercelfo','NyForm','Rainbow Fairies','Disney'
+          ].find(c => risposta.toLowerCase().includes(c.toLowerCase()));
+          if (catInRisposta) avviaTimerVuoiVedere(catInRisposta);
         }
         isBusy=false; setStatus('idle');
       },
