@@ -455,60 +455,13 @@ async function avvia() {
 let isBusy = false;
 const storiaCon = [];
 let _ultimaAttivita = Date.now();
-
-// Reset storia dopo 60s di inattività (silenzio + niente scroll carosello)
-function aggiornaAttivita() {
-  _ultimaAttivita = Date.now();
-  // Se c'era un timer "vuoi vedere?" attivo, cancellalo (cliente ancora attivo)
-  if (_timerVuoiVedere) { clearTimeout(_timerVuoiVedere); _timerVuoiVedere = null; }
-}
+function aggiornaAttivita() { _ultimaAttivita = Date.now(); }
 function checkResetStoria() {
   if (Date.now() - _ultimaAttivita > 60000 && storiaCon.length > 0) {
-    console.log('⏱ Reset storia per inattività (60s)');
+    console.log('⏱ Reset storia 60s');
     storiaCon.length = 0;
-    _categoriaUltimaRisposta = null;
   }
 }
-
-// Timer per "vuoi vedere?" dopo risposta con >10 articoli
-let _timerVuoiVedere = null;
-let _categoriaUltimaRisposta = null;
-
-function avviaTimerVuoiVedere(categoria) {
-  if (_timerVuoiVedere) clearTimeout(_timerVuoiVedere);
-  _categoriaUltimaRisposta = categoria;
-  _timerVuoiVedere = setTimeout(async () => {
-    _timerVuoiVedere = null;
-    if (isBusy) return; // Tania sta già parlando
-    console.log('⏱ 5s silenzio dopo risposta generica — pronuncio vuoi vedere?');
-    isBusy = true; setStatus('speak');
-    await fermaFraseAttesa();
-    // Riproduci video lipsync "vuoi vedere?"
-    const vuoiUrl = SERVER + '/cache/servizio/it_servizio_vuoi_vedere.mp4';
-    const vuoiAudio = SERVER + '/cache/servizio/it_servizio_vuoi_vedere.mp3';
-    try {
-      const check = await fetch(vuoiUrl, { method: 'HEAD', signal: AbortSignal.timeout(2000) });
-      if (check.ok) {
-        await new Promise(resolve => {
-          stopLoop();
-          crossfadeTo(vuoiUrl, false, () => { loopPool(POOL.lunga); resolve(); }, true);
-          setTimeout(resolve, 10000);
-        });
-      } else {
-        const aud = new Audio(vuoiAudio);
-        await new Promise(res => { aud.onended = res; aud.onerror = () => res(); aud.play().catch(() => res()); });
-        loopPool(POOL.lunga);
-      }
-    } catch(e) {
-      loopPool(POOL.lunga);
-    }
-    isBusy = false; setStatus('idle');
-    // Attendi risposta del cliente — se dice sì mostra carosello
-    _attesaRispostaVuoiVedere = true;
-  }, 5000);
-}
-
-let _attesaRispostaVuoiVedere = false;
 
 // ── Negozio corrente (da URL ?negozio=Ba o Bc) ──────────────────
 const NEGOZIO = new URLSearchParams(window.location.search).get('negozio') || '';
@@ -589,13 +542,14 @@ function randParlato() {
 // Frasi di servizio che hanno solo audio (no video lipsync)
 const SERVIZIO_SOLO_AUDIO = new Set([
   'it_servizio_niente_male', 'it_servizio_ottima_scelta',
-
 ]);
 
 async function riproduciServizio(serviceVideo, testo, prodotti) {
   setStatus('speak');
   await fermaFraseAttesa();
+
   if (SERVIZIO_SOLO_AUDIO.has(serviceVideo)) {
+    // Solo audio — libera microfono e apri carosello subito
     isBusy = false; setStatus('idle');
     if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
     try {
@@ -603,27 +557,33 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
       await new Promise(res => { aud.onended = res; aud.onerror = () => res(); aud.play().catch(() => res()); });
     } catch(e) {}
   } else {
+    // Ha video lipsync — Tania parla, poi apre carosello
     const videoUrl = SERVER + '/cache/servizio/' + serviceVideo + '.mp4';
-    console.log('🎬 servizio video:', serviceVideo);
+    console.log('🎬 servizio video:', serviceVideo, '| prodotti:', prodotti?.length||0);
     let risolto = false;
     const apriDopoVideo = () => {
       if (risolto) return; risolto = true;
       loopPool(POOL.lunga); isBusy = false; setStatus('idle');
-      if (prodotti && prodotti.length > 0) setTimeout(() => mostraProdotti(prodotti), 300);
+      if (prodotti && prodotti.length > 0) {
+        console.log('🎬 apro carosello con', prodotti.length, 'prodotti');
+        setTimeout(() => mostraProdotti(prodotti), 300);
+      }
     };
     try {
-      const check = await fetch(videoUrl, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
-      if (!check.ok) throw new Error('video non disponibile');
+      // Verifica che il video esista prima di caricarlo
+      const check = await fetch(videoUrl, { method: 'HEAD', signal: AbortSignal.timeout(3000) }).catch(() => null);
+      if (!check || !check.ok) {
+        console.log('🎬 video non trovato — apro carosello direttamente');
+        loopPool(POOL.lunga); isBusy = false; setStatus('idle');
+        if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
+        return;
+      }
       await new Promise(resolve => {
         stopLoop();
         crossfadeTo(videoUrl, false, () => { apriDopoVideo(); resolve(); }, true);
         setTimeout(() => { apriDopoVideo(); resolve(); }, 12000);
       });
-    } catch(e) {
-      console.log('🎬 video non trovato — carosello diretto');
-      loopPool(POOL.lunga); isBusy = false; setStatus('idle');
-      if (prodotti && prodotti.length > 0) mostraProdotti(prodotti);
-    }
+    } catch(e) { apriDopoVideo(); }
   }
 }
 
@@ -636,11 +596,15 @@ function mostraProdotti(prodotti) {
 }
 
 function apriCarosello(prodotti) {
-  _carProdotti = prodotti; _carIdx = 0;
+  _carProdotti = prodotti;
+  _carIdx = 0;
   _renderCar();
   const ov = document.getElementById('carosello-overlay');
-  if (!ov) return;
+  console.log('apriCarosello: ov trovato=', !!ov, 'n=', prodotti.length);
+  if (!ov) { console.warn('carosello-overlay NON nel DOM!'); return; }
   ov.classList.add('show');
+  ov.addEventListener('touchstart', _carTouchStart, { passive: true });
+  ov.addEventListener('touchend',   _carTouchEnd,   { passive: true });
   ov.onclick = (e) => { if (e.target === ov) chiudiCarosello(); };
 }
 
@@ -663,7 +627,7 @@ function caroselloPrev() {
   _renderCar();
 }
 
-function _carTouchStart(e) { _carSwipeX = e.touches[0].clientX; aggiornaAttivita(); }
+function _carTouchStart(e) { _carSwipeX = e.touches[0].clientX; }
 function _carTouchEnd(e) {
   if (_carSwipeX === null) return;
   const dx = e.changedTouches[0].clientX - _carSwipeX;
@@ -959,46 +923,6 @@ function startListening() {
     if (!testo || testo.length < 2) { isBusy=false; setStatus('idle'); return; }
     setStatus('think'); loopPool(POOL.lunga);
     console.log('🎤 Trascritto:', testo);
-    checkResetStoria();
-    aggiornaAttivita();
-
-    // Se stavamo aspettando risposta a "vuoi vedere?" — intercetta sì/no
-    if (_attesaRispostaVuoiVedere) {
-      _attesaRispostaVuoiVedere = false;
-      const rispostaPos = testo.toLowerCase().match(/\b(sì|si|certo|ok|vai|dai|mostra|mostrami|yes|sure|ja|oui|sí|szí|ano|tak|igen|da|да)\b/i);
-      const rispostaNeg = testo.toLowerCase().match(/\b(no|nope|non|nein|niet|nem|nao|não)\b/i);
-      if (rispostaPos && !rispostaNeg && _categoriaUltimaRisposta) {
-        // Cliente dice sì → mostra carosello della categoria
-        console.log('✓ Cliente vuole vedere articoli di:', _categoriaUltimaRisposta);
-        isBusy = true;
-        try {
-          const r = await fetch(SERVER + '/api/voice-answer', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: 'mostrami ' + _categoriaUltimaRisposta, lang: LANG, mode: 'mobile', storia: [], negozio: NEGOZIO })
-          });
-          const txt = await r.text();
-          let prodotti = null;
-          let serviceVideo = null;
-          for (const line of txt.split('\n')) {
-            if (!line.startsWith('data: ')) continue;
-            try { const j = JSON.parse(line.slice(6)); if (j.prodotti) prodotti = j.prodotti; if (j.serviceVideo) serviceVideo = j.serviceVideo; } catch(e) {}
-          }
-          if (prodotti && prodotti.length > 0) {
-            await riproduciServizio(serviceVideo || 'it_servizio_ecco_trovato', '', prodotti);
-          }
-        } catch(e) { console.log('Errore carosello vuoi vedere:', e.message); }
-        _categoriaUltimaRisposta = null;
-        isBusy = false; setStatus('idle');
-        return; // Non processare oltre questa risposta
-      } else if (rispostaNeg) {
-        // Cliente dice no → ignora
-        _categoriaUltimaRisposta = null;
-        isBusy = false; setStatus('idle');
-        return;
-      }
-      // Altrimenti continua normalmente
-    }
 
     // Controlla offese
     const off = offesa(testo);
@@ -1029,12 +953,6 @@ function startListening() {
           await riproduciServizio(serviceVideo, risposta, prodotti);
         } else {
           await speak(risposta, 'normale', videoHash);
-          // Se la risposta era generica (>10 articoli, no carosello) avvia timer 5s
-          // Il server non manda serviceVideo in questo caso
-          // Avvia solo se c'è una categoria attiva riconoscibile nella risposta
-          const catInRisposta = window._categoriaConArticoliSSE || null;
-          window._categoriaConArticoliSSE = null;
-          if (catInRisposta) avviaTimerVuoiVedere(catInRisposta);
         }
         isBusy=false; setStatus('idle');
       },
