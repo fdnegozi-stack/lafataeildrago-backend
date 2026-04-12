@@ -452,7 +452,7 @@ async function fetchSSE(url, body, onToken, onDone, onError, _tentativo=0) {
   try {
     const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     const text = await res.text();
-    let full = '', videoHash = null, serviceVideo = null, prodottiRisposta = null, followUp = false;
+    let full = '', videoHash = null, serviceVideo = null, prodottiRisposta = null, followUp = false, followUpTipo = 'generale';
     for (const line of text.split('\n')) {
       if (!line.startsWith('data: ')) continue;
       try {
@@ -460,12 +460,13 @@ async function fetchSSE(url, body, onToken, onDone, onError, _tentativo=0) {
         if (j.token) full += j.token;
         if (j.videoHash) videoHash = j.videoHash;
         if (j.followUp) followUp = true;
+        if (j.followUpTipo) followUpTipo = j.followUpTipo;
         if (j.serviceVideo) serviceVideo = j.serviceVideo;
         if (j.prodotti) prodottiRisposta = j.prodotti;
         if (j.error) { onError(j.error); return; }
       } catch(e){}
     }
-    if (full.trim()) { onToken(full); onDone(videoHash, serviceVideo, prodottiRisposta, followUp); return; }
+    if (full.trim()) { onToken(full); onDone(videoHash, serviceVideo, prodottiRisposta, followUp, followUpTipo); return; }
     try { const j=JSON.parse(text); const r=j.answer||j.text||''; if(r){onToken(r);onDone(null);return;} if(j.error){onError(j.error);return;} } catch(e){}
     onError('Nessuna risposta');
   } catch(e) {
@@ -538,21 +539,21 @@ function cancellaFollowUpTimer() {
   if (followUpTimer) { clearTimeout(followUpTimer); followUpTimer = null; }
 }
 
-function avviaFollowUp(tipoArticolo) {
+function avviaFollowUp(tipoArticolo, tipo) {
   cancellaFollowUpTimer();
   if (followUpUsato) return; // già usato consecutivamente
   ultimoTipoArticolo = tipoArticolo;
+  const videoId = (tipo === 'categoria') ? 'it_servizio_vuoi_vedere' : 'it_servizio_cercavi_qualcosa';
+  const testoId  = (tipo === 'categoria') ? 'Vuoi che ti mostro qualche articolo di questa collezione?' : 'Cercavi qualcosa in particolare?';
   followUpTimer = setTimeout(async () => {
     followUpTimer = null;
-    if (isBusy) return; // cliente già sta parlando
+    if (isBusy) return;
     const carosello = document.getElementById('carosello-overlay');
-    if (carosello && carosello.style.display !== 'none' && carosello.style.opacity !== '0') return; // carosello attivo
+    if (carosello && carosello.classList.contains('show')) return; // carosello attivo
     followUpUsato = true;
-    // Riproduci video servizio "Cercavi qualcosa in particolare?"
-    await riproduciServizio('it_servizio_cercavi_qualcosa', 'Cercavi qualcosa in particolare?', null);
-    // Attiva ascolto automaticamente
+    await riproduciServizio(videoId, testoId, null);
     if (!isBusy) startListening();
-  }, 4000);
+  }, 5000);
 }
 
 // ── Carosello prodotti ───────────────────────────────────────────
@@ -914,7 +915,7 @@ function startListening() {
       SERVER+'/api/voice-answer',
       { text:testo, lang:LANG, mode:'mobile', storia:storiaCon.slice(-8), negozio:NEGOZIO, contestoTipo:ultimoTipoArticolo },
       t => { risposta += t; },
-      async (videoHash, serviceVideo, prodotti, followUp) => {
+      async (videoHash, serviceVideo, prodotti, followUp, followUpTipo) => {
         await fermaFraseAttesa(); // aspetta eventuale video di attesa prima di procedere
         storiaCon.push({ role:'assistant', content:risposta });
         console.log('💬 Risposta:', risposta.substring(0,60));
@@ -928,7 +929,7 @@ function startListening() {
           if (followUp && !prodotti?.length) {
             // Estrai tipo articolo dall'ultima domanda utente
             const ultimaDomanda = storiaCon.filter(s=>s.role==='user').slice(-1)[0]?.content || '';
-            avviaFollowUp(ultimaDomanda);
+            avviaFollowUp(ultimaDomanda, followUpTipo);
           }
         }
         isBusy=false; setStatus('idle');
