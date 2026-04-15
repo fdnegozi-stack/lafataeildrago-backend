@@ -109,7 +109,7 @@
       <div class="btn-circle" id="cameraBtn">📷</div>
       <span class="btn-label">Fotografa</span>
     </div>
-    <div class="action-btn" onclick="startListening()">
+    <div class="action-btn" onclick="(currentStatus==='think' ? interrompiElaborazione() : startListening())">
       <div class="btn-circle" id="micBtn">🎙️</div>
       <span class="btn-label">Chiedi</span>
     </div>
@@ -407,6 +407,7 @@ async function avvia() {
 
 // ── Stato ─────────────────────────────────────────────────────────
 let isBusy = false;
+let _elaborazioneCtrl = null; // AbortController per interrompere fetchSSE durante elaborazione
 let followUpTimer = null;
 let ultimoTipoArticolo = null; // contesto per follow-up ("draghi", "fate", ecc.)
 let followUpUsato = false;     // evita ripetizione consecutiva
@@ -419,7 +420,8 @@ const bubble  = document.getElementById('responseBubble');
 const overlay = document.getElementById('listeningOverlay');
 const micBtn  = document.getElementById('micBtn');
 const camInp  = document.getElementById('cameraInput');
-const setStatus = s => { ring.className=''; ring.classList.add('show',s); };
+let currentStatus = 'idle';
+const setStatus = s => { currentStatus = s; ring.className=''; ring.classList.add('show',s); };
 const showText  = t => {};
 
 // ── Offese ────────────────────────────────────────────────────────
@@ -932,6 +934,9 @@ function startListening() {
     if (storiaCon.length > 8) storiaCon.splice(0,2);
 
     let risposta = '';
+    _elaborazioneCtrl = new AbortController();
+    const _sseSignal = _elaborazioneCtrl.signal;
+    try {
     await fetchSSE(
       SERVER+'/api/voice-answer',
       { text:testo, lang:LANG, mode:'mobile', storia:storiaCon.slice(-8), negozio:NEGOZIO, contestoTipo:ultimoTipoArticolo },
@@ -955,8 +960,10 @@ function startListening() {
         }
         isBusy=false; setStatus('idle');
       },
-      err => { fermaFraseAttesa(); console.log('❌ Errore:', err); isBusy=false; setStatus('idle'); loopPool(POOL.lunga); } // fermaFraseAttesa non attesa in caso di errore
+      err => { fermaFraseAttesa(); console.log('❌ Errore:', err); isBusy=false; setStatus('idle'); loopPool(POOL.lunga); }
     );
+    } catch(abortErr) { console.log('⏹ fetchSSE abortato'); }
+    _elaborazioneCtrl = null;
   };
 
   rec.onerror = e => {
@@ -971,6 +978,22 @@ function startListening() {
   };
 
   rec.start();
+}
+
+function interrompiElaborazione() {
+  if (_elaborazioneCtrl) {
+    _elaborazioneCtrl.abort();
+    _elaborazioneCtrl = null;
+  }
+  fermaFraseAttesa();
+  cancellaFollowUpTimer();
+  isBusy = false;
+  setStatus('idle');
+  loopPool(POOL.lunga);
+  // La storia è già aggiornata con la domanda — Tania ricorderà il contesto
+  console.log('⏹ Elaborazione interrotta dal cliente');
+  // Riapri ascolto dopo breve pausa
+  setTimeout(startListening, 600);
 }
 
 function cancelListening() {
