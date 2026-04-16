@@ -138,6 +138,7 @@
 <script>
 // ── Config ───────────────────────────────────────────────────────
 let SERVER = 'https://silly-hobby-latino-comfort.trycloudflare.com';
+const GITHUB_BASE = 'https://raw.githubusercontent.com/fdnegozi-stack/lafataeildrago-backend/main';
 const LINGUE = ['it','en','de','fr','es','nl','pl','cs','sk','hu','ro','bg','sl','hr','sr','bs','sq','el','uk','ru','et','lv','lt','sv','no','da','fi'];
 const _lr = (navigator.language||'it').split('-')[0].toLowerCase();
 const LANG = LINGUE.includes(_lr) ? _lr : 'it';
@@ -163,7 +164,7 @@ function aggiornaPool() {
   POOL.lunga        = ['attesa1_9','attesa2_9','attesa3_9','attesa4_9'].map(n=>SERVER+'/video/'+n+'.mp4');
   POOL.parlato      = [1,2,3].map(i=>SERVER+'/video/parlato normale '+i+'.mp4');
   POOL.medio        = ['attesa1_6','attesa1_7','attesa2_7','attesa1_8'].map(n=>SERVER+'/video/'+n+'.mp4');
-  POOL.sfondoVuoto  = [SERVER+'/video/sfondo vuoto.mp4'];
+  POOL.sfondoVuoto  = [GITHUB_BASE+'/sfondo_vuoto.mp4'];
   POOL.offesaLieve  = [SERVER+'/video/offesa lieve.mp4'];
   POOL.offesaGrave  = [SERVER+'/video/offesa grave.mp4'];
   POOL.offesaSeNeVa = [SERVER+'/video/offesa e se ne va.mp4'];
@@ -301,24 +302,27 @@ async function fermaFraseAttesa() {
 function startForest() {
   if (forestAudio) return;
   let attempts = 0;
+  // Prima prova il server locale, poi fallback GitHub
+  const FOREST_URLS = [
+    SERVER + '/app/forest.mp3',
+    GITHUB_BASE + '/forest.mp3',
+  ];
   function tryLoad() {
+    const url = attempts < FOREST_URLS.length ? FOREST_URLS[attempts] : null;
+    if (!url) { console.log('Foresta non disponibile'); return; }
     attempts++;
     try {
-      forestAudio = new Audio(SERVER + '/app/forest.mp3');
+      forestAudio = new Audio(url);
       forestAudio.loop = true; forestAudio.volume = 0.25;
       forestAudio.onerror = () => {
         forestAudio = null;
-        if (attempts < 5) {
-          console.log(`Foresta retry ${attempts}...`);
-          setTimeout(tryLoad, 3000);
-        } else {
-          console.log('Foresta non disponibile');
-        }
+        console.log(`Foresta retry ${attempts}...`);
+        setTimeout(tryLoad, 1000);
       };
       forestAudio.play()
         .then(()=>console.log('✓ Foresta avviata'))
-        .catch(e=>{ forestAudio=null; if(attempts<5) setTimeout(tryLoad,3000); });
-    } catch(e){ forestAudio=null; if(attempts<5) setTimeout(tryLoad,3000); }
+        .catch(e=>{ forestAudio=null; setTimeout(tryLoad,1000); });
+    } catch(e){ forestAudio=null; setTimeout(tryLoad,1000); }
   }
   tryLoad();
 }
