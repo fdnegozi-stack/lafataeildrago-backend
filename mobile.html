@@ -26,6 +26,8 @@
   @keyframes tapBounce { 0%,100%{transform:translateY(0);opacity:1} 50%{transform:translateY(-8px);opacity:0.7} }
   #ui { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 24px 16px 36px; gap: 14px; background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 45%, transparent 70%); pointer-events: none; opacity: 0; }
   #ui.show { opacity: 1; transition: opacity 2.5s ease 0.5s; pointer-events: auto; }
+  #ui.offline .action-buttons { display: none; }
+  #ui.offline .titolo-basso { display: none; }
   .action-buttons { display: flex; gap: 24px; align-items: flex-end; justify-content: center; opacity: 0; transform: translateY(20px); transition: opacity 2s ease 1.5s, transform 2s ease 1.5s; }
   #ui.show .action-buttons { opacity: 1; transform: translateY(0); }
   .titolo-basso { font-size: 1rem; letter-spacing: 0.18em; color: #d4af37; text-shadow: 0 0 12px rgba(212,175,55,0.7); opacity: 0; transform: translateY(10px); transition: opacity 2s ease 2.5s, transform 2s ease 2.5s; }
@@ -391,7 +393,7 @@ async function avvia() {
     // Al primo tentativo fallito mostra subito sfondo vuoto da GitHub
     if (window._avviaTentativo === 1) {
       startForest();
-      document.getElementById('ui').classList.add('show');
+      document.getElementById('ui').classList.add('show', 'offline');
       document.getElementById('logoTop').classList.add('show');
       crossfadeTo(GITHUB_BASE + '/sfondo_vuoto.mp4', true);
       console.log('📴 Modalità offline — sfondo da GitHub');
@@ -402,6 +404,7 @@ async function avvia() {
 
   startForest();
   document.getElementById('ui').classList.add('show');
+  document.getElementById('ui').classList.remove('offline');
   document.getElementById('logoTop').classList.add('show');
   setStatus('idle');
   setTimeout(() => {
