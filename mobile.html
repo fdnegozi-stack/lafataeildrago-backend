@@ -301,16 +301,11 @@ async function fermaFraseAttesa() {
 
 function startForest() {
   if (forestAudio) return;
+  const FOREST_URLS = [GITHUB_BASE + '/forest.mp3', SERVER + '/app/forest.mp3'];
   let attempts = 0;
-  // Prima prova il server locale, poi fallback GitHub
-  const FOREST_URLS = [
-    SERVER + '/app/forest.mp3',
-    GITHUB_BASE + '/forest.mp3',
-  ];
   function tryLoad() {
-    const url = attempts < FOREST_URLS.length ? FOREST_URLS[attempts] : null;
-    if (!url) { console.log('Foresta non disponibile'); return; }
-    attempts++;
+    if (attempts >= FOREST_URLS.length) { console.log('Foresta non disponibile'); return; }
+    const url = FOREST_URLS[attempts++];
     try {
       forestAudio = new Audio(url);
       forestAudio.loop = true; forestAudio.volume = 0.25;
@@ -393,7 +388,14 @@ async function avvia() {
     window._avviaTentativo = (window._avviaTentativo || 0) + 1;
     const delay = window._avviaTentativo <= 12 ? 5000 : 30000;
     console.log(`⚠ Server non raggiungibile — riprovo tra ${delay/1000}s (tentativo ${window._avviaTentativo})`);
-    startForest();
+    // Al primo tentativo fallito mostra subito sfondo vuoto da GitHub
+    if (window._avviaTentativo === 1) {
+      startForest();
+      document.getElementById('ui').classList.add('show');
+      document.getElementById('logoTop').classList.add('show');
+      crossfadeTo(GITHUB_BASE + '/sfondo_vuoto.mp4', true);
+      console.log('📴 Modalità offline — sfondo da GitHub');
+    }
     setTimeout(avvia, delay);
     return;
   }
