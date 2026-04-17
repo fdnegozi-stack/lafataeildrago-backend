@@ -196,9 +196,10 @@ function crossfadeTo(src, loop=true, onEnded=null, withAudio=false) {
   const next = activeSlot==='A' ? vidB : vidA;
   const prev = activeSlot==='A' ? vidA  : vidB;
   next.src = src; next.loop = loop; next.muted = !withAudio; next.load();
+  next.onerror = () => { console.log('❌ Video errore:', src); };
   next.oncanplay = () => {
-    next.oncanplay = null;
-    next.play().catch(()=>{});
+    next.oncanplay = null; next.onerror = null;
+    next.play().catch(e=>console.log('❌ Video play errore:', e.message));
     next.classList.remove('hidden'); next.classList.add('visible');
     logoF.classList.add('hidden');
     if (activeSlot !== null) {
