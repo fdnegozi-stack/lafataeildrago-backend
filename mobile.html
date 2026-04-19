@@ -876,7 +876,8 @@ camInp.addEventListener('change', async () => {
       top.nome = top.nome || top.descrizione || 'Prodotto';
       prevNome.textContent = top.nome;
       prevPrezzo.textContent = top.prezzo ? `€ ${parseFloat(top.prezzo).toFixed(2)}` : '';
-      prevRes.textContent = `sim: ${top.similarity != null ? (top.similarity*100).toFixed(0)+'%' : '?'}`;
+      prevRes.textContent = ''; // solo in DBG
+      console.log(`📷 sim: ${top.similarity != null ? (top.similarity*100).toFixed(0)+'%' : '?'}`);
       setStatus('speak');
       loopPool(POOL.lunga);
 
@@ -899,43 +900,32 @@ camInp.addEventListener('change', async () => {
           console.log('📷 Frase1:', frase1.substring(0,60));
           console.log('📷 Frase2:', frase2.substring(0,60));
 
-          // Frase1: usa lipsync se in cache, altrimenti salta
-          if (frase1.trim()) {
-            const lsCheck = await fetch(SERVER+'/api/tts-lipsync', {
-              method:'POST', headers:{'Content-Type':'application/json'},
-              body: JSON.stringify({ text:frase1.trim(), lang:LANG, noGenerate:true })
-            }).catch(()=>null);
-            const lsData = lsCheck ? await lsCheck.json().catch(()=>({})) : {};
-            if (lsData.ok && lsData.videoUrl) {
-              await new Promise(resolve => {
-                stopLoop();
-                crossfadeTo(SERVER+lsData.videoUrl, false, ()=>{ loopPool(POOL.lunga); resolve(); }, true);
-              });
-            } else if (lsData.audioUrl) {
-              const aud = new Audio(SERVER + lsData.audioUrl);
-              await new Promise(resolve => { aud.onended=resolve; setTimeout(resolve,30000); aud.play().catch(()=>resolve()); });
-            }
-          }
-
-          // Frase2: zoom foto + TTS
-          if (frase2.trim()) {
-            const imgUrl = SERVER + '/img-locali/' + top.id + '.jpg';
-            const imgTest = new Image();
-            await new Promise(resolve => { imgTest.onload=resolve; imgTest.onerror=resolve; imgTest.src=imgUrl; setTimeout(resolve,2000); });
-            if (imgTest.complete && imgTest.naturalWidth > 0) {
-              prevImg.style.transition='opacity 0.4s'; prevImg.style.opacity='0';
-              await new Promise(r=>setTimeout(r,400));
-              prevImg.src=imgUrl; prevImg.style.opacity='1';
-            }
-            prevDiv.style.cssText='transition:all 0.6s ease;position:fixed;top:0;left:0;width:100vw;height:62vh;bottom:auto;transform:none;border-radius:0 0 16px 16px;z-index:11';
-            prevImg.style.cssText='width:100%;height:100%;object-fit:contain;background:rgba(0,0,0,0.95)';
-            await new Promise(r=>setTimeout(r,600));
-            await speak(frase2.trim(), 'foto');
+          // Prima mostra foto del sito nell'overlay, poi parla
+          if (frase2.trim() || frase1.trim()) {
+            // Nascondi preview foto cliente
+            prevDiv.classList.remove('show');
+            // Mostra foto prodotto sito nell'overlay carosello
+            const _p = {
+              id: top.id,
+              descrizione: top.nome || top.descrizione || '',
+              prezzo: top.prezzo || 0,
+              dimensioni: top.dimensioni || '',
+              sottocategoria: top.sottocategoria || '',
+              giacenzaProprio: top.giacenzaProprio || 1,
+              giacenzaAltro: top.giacenzaAltro || 0
+            };
+            mostraProdotti([_p]);
+            // Attendi che l'overlay sia visibile
+            await new Promise(r => setTimeout(r, 400));
+            // Parla frase1 poi frase2
+            const _fraseAudio = frase1.trim() || frase2.trim();
+            if (_fraseAudio) await speak(_fraseAudio, 'foto');
           }
         }
       } catch(e) { console.log('📷 errore avatar:', e.message); }
     } else {
-      prevRes.textContent = top ? `sim: ${(top.similarity*100).toFixed(0)}% — sotto soglia` : 'Nessun risultato';
+      prevRes.textContent = '';
+      console.log(`📷 sotto soglia: ${top ? (top.similarity*100).toFixed(0)+'%' : 'nessun risultato'}`);
       const MSG = { it:"Non ho riconosciuto l'articolo. Prova a fotografarlo da più vicino!", en:"I didn't recognize this item. Try taking a closer photo!", de:"Ich habe den Artikel nicht erkannt. Versuche ein näheres Foto!" };
       await speak(MSG[LANG]||MSG.it, 'foto');
     }
