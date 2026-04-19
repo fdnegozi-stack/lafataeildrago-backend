@@ -59,14 +59,15 @@
   #photoClose { position: absolute; top: 4px; right: 6px; color: #c8b060; font-size: 1.1rem; cursor: pointer; z-index: 16; }
   #cameraInput { display: none; }
   /* ── Carosello prodotti ─────────────────────────────────────── */
-  #carosello-overlay { display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,0.88); flex-direction:column; align-items:center; justify-content:center; padding:16px; gap:12px; }
+  #carosello-overlay { display:none; position:fixed; top:0; left:0; right:0; height:62vh; z-index:50; background:linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.55) 100%); flex-direction:column; align-items:center; justify-content:center; padding:12px 0 8px; gap:8px; backdrop-filter:blur(2px); }
   #carosello-overlay.show { display:flex; }
-  #carosello-chiudi { position:absolute; top:14px; right:18px; font-size:1.6rem; color:#d4af37; cursor:pointer; z-index:51; }
-  #carosello-track { width:100%; max-width:400px; }
-  .car-card { background:rgba(20,15,0,0.95); border:1px solid rgba(212,175,55,0.35); border-radius:14px; overflow:hidden; cursor:pointer; }
-  .car-img { width:100%; aspect-ratio:1; object-fit:contain; background:#111; }
-  .car-img-placeholder { width:100%; aspect-ratio:1; background:#111; display:flex; align-items:center; justify-content:center; color:#555; font-size:2rem; }
-  .car-body { padding:12px 14px; display:flex; flex-direction:column; gap:6px; }
+  #carosello-chiudi { position:absolute; top:10px; right:14px; font-size:1.4rem; color:#d4af37; cursor:pointer; z-index:51; }
+  /* Track con peek — mostra bordo card adiacente */
+  #carosello-track { width:100%; overflow:hidden; padding:0 10%; }
+  .car-card { background:rgba(10,8,0,0.92); border:1px solid rgba(212,175,55,0.4); border-radius:14px; overflow:hidden; cursor:pointer; transition:transform 0.35s cubic-bezier(.25,.46,.45,.94); }
+  .car-img { width:100%; aspect-ratio:1.3; object-fit:contain; background:#0a0800; }
+  .car-img-placeholder { width:100%; aspect-ratio:1.3; background:#0a0800; display:flex; align-items:center; justify-content:center; color:#555; font-size:2rem; }
+  .car-body { padding:8px 12px 10px; display:flex; flex-direction:column; gap:4px; }
   .car-desc { font-size:0.88rem; color:#f0e0b0; line-height:1.4; }
   .car-sub { font-size:0.75rem; color:#a07830; letter-spacing:0.05em; }
   .car-prezzo { font-size:1.1rem; color:#ffd700; font-weight:bold; }
@@ -638,12 +639,12 @@ async function riproduciInfoCarosello(sottocategoria) {
 function caroselloNext() {
   if (!_carProdotti.length) return;
   _carIdx = (_carIdx + 1) % _carProdotti.length;
-  _renderCar();
+  _renderCar('next');
 }
 function caroselloPrev() {
   if (!_carProdotti.length) return;
   _carIdx = (_carIdx - 1 + _carProdotti.length) % _carProdotti.length;
-  _renderCar();
+  _renderCar('prev');
 }
 
 function _carTouchStart(e) { _carSwipeX = e.touches[0].clientX; }
@@ -655,26 +656,60 @@ function _carTouchEnd(e) {
   else if (dx > 45) caroselloPrev();
 }
 
-function _renderCar() {
-  const track = document.getElementById('carosello-track');
-  const indice = document.getElementById('carosello-indice');
-  const p = _carProdotti[_carIdx];
-  if (!p || !track) return;
+function _buildCard(p, idx) {
   const imgUrl = SERVER + '/img-locali/' + p.id + '.jpg';
   const ultimo = p.giacenzaProprio === 1 ? '<div class="car-ultimo">⚠ Ultimo pezzo disponibile</div>' : '';
   const dim = p.dimensioni ? `<div class="car-dim">${p.dimensioni}</div>` : '';
   const sub = p.sottocategoria ? `<div class="car-sub">${p.sottocategoria}</div>` : '';
-  track.innerHTML = `
-    <div class="car-card" onclick="commentaArticolo(${_carIdx})">
-      <img class="car-img" src="${imgUrl}" alt="${p.descrizione}"
-        onerror="this.outerHTML='<div class=\'car-img-placeholder\'>🔮</div>';">
-      <div class="car-body">
-        ${sub}
-        <div class="car-desc">${p.descrizione}</div>
-        <div class="car-prezzo">€${parseFloat(p.prezzo||0).toFixed(2)}</div>
-        ${dim}${ultimo}
-      </div>
+  const card = document.createElement('div');
+  card.className = 'car-card';
+  card.onclick = () => commentaArticolo(idx);
+  card.innerHTML = `
+    <img class="car-img" src="${imgUrl}" alt="${p.descrizione}"
+      onerror="this.outerHTML='<div class=\'car-img-placeholder\'>🔮</div>';">
+    <div class="car-body">
+      ${sub}
+      <div class="car-desc">${p.descrizione}</div>
+      <div class="car-prezzo">€${parseFloat(p.prezzo||0).toFixed(2)}</div>
+      ${dim}${ultimo}
     </div>`;
+  return card;
+}
+
+function _renderCar(direction) {
+  const track = document.getElementById('carosello-track');
+  const indice = document.getElementById('carosello-indice');
+  const p = _carProdotti[_carIdx];
+  if (!p || !track) return;
+
+  const newCard = _buildCard(p, _carIdx);
+
+  if (!direction || !track.firstChild) {
+    track.innerHTML = '';
+    track.appendChild(newCard);
+  } else {
+    const oldCard = track.firstChild;
+    const fromX = direction === 'next' ? '110%' : '-110%';
+    const toX   = direction === 'next' ? '-110%' : '110%';
+    newCard.style.cssText = `position:absolute;top:0;left:0;right:0;transform:translateX(${fromX});transition:transform 0.35s cubic-bezier(.25,.46,.45,.94);`;
+    oldCard.style.transition = 'transform 0.35s cubic-bezier(.25,.46,.45,.94)';
+    track.style.position = 'relative';
+    track.style.overflow = 'visible';
+    track.appendChild(newCard);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        oldCard.style.transform = `translateX(${toX})`;
+        newCard.style.transform = 'translateX(0)';
+        setTimeout(() => {
+          track.innerHTML = '';
+          newCard.style.cssText = '';
+          track.style.cssText = '';
+          track.appendChild(newCard);
+        }, 360);
+      });
+    });
+  }
+
   if (indice) indice.textContent = `${_carIdx + 1} / ${_carProdotti.length}`;
 }
 
