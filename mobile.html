@@ -872,6 +872,7 @@ camInp.addEventListener('change', async () => {
     const SOGLIA = 0.70;
     const top = lista.length > 0 ? lista[0] : null;
     const riconosciuto = top && (top.similarity == null || top.similarity >= SOGLIA);
+    console.log('📷 top:', JSON.stringify(top).substring(0, 200));
 
     if (riconosciuto) {
       top.nome = top.nome || top.descrizione || 'Prodotto';
