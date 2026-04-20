@@ -604,7 +604,10 @@ function apriCarosello(prodotti) {
   ov.addEventListener('touchstart', _carTouchStart, { passive: true });
   ov.addEventListener('touchend',   _carTouchEnd,   { passive: true });
   ov.onclick = (e) => { if (e.target === ov) chiudiCarosello(); };
-  if (prodotti[0]?.sottocategoria) riproduciInfoCarosello(prodotti[0].sottocategoria, prodotti[0].categoria);
+  if (prodotti[0]?.sottocategoria) {
+    console.log('📷 riproduciInfo:', prodotti[0].sottocategoria, '/', prodotti[0].categoria);
+    riproduciInfoCarosello(prodotti[0].sottocategoria, prodotti[0].categoria);
+  }
 }
 
 function chiudiCarosello() {
@@ -912,6 +915,7 @@ camInp.addEventListener('change', async () => {
               descrizione: top.nome || top.descrizione || '',
               prezzo: top.prezzo || 0,
               dimensioni: top.dimensioni || '',
+              categoria: top.categoria || '',
               sottocategoria: top.sottocategoria || '',
               giacenzaProprio: top.giacenzaProprio || 1,
               giacenzaAltro: top.giacenzaAltro || 0
