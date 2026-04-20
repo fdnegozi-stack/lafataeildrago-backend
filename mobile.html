@@ -604,7 +604,7 @@ function apriCarosello(prodotti) {
   ov.addEventListener('touchstart', _carTouchStart, { passive: true });
   ov.addEventListener('touchend',   _carTouchEnd,   { passive: true });
   ov.onclick = (e) => { if (e.target === ov) chiudiCarosello(); };
-  if (prodotti[0]?.sottocategoria) riproduciInfoCarosello(prodotti[0].sottocategoria);
+  if (prodotti[0]?.sottocategoria) riproduciInfoCarosello(prodotti[0].sottocategoria, prodotti[0].categoria);
 }
 
 function chiudiCarosello() {
@@ -616,20 +616,21 @@ function chiudiCarosello() {
 }
 
 // ── Info materiali/toccare durante carosello ─────────────────────
-async function riproduciInfoCarosello(sottocategoria) {
+async function riproduciInfoCarosello(sottocategoria, categoria) {
   if (!sottocategoria) return;
   try {
-    const r = await fetch(SERVER + '/api/info-sottocategoria?sottocategoria=' + encodeURIComponent(sottocategoria));
+    const _url = SERVER + '/api/info-sottocategoria?sottocategoria=' + encodeURIComponent(sottocategoria) + (categoria ? '&categoria=' + encodeURIComponent(categoria) : '');
+    const r = await fetch(_url);
     const d = await r.json();
     if (!d.ok) return;
     await new Promise(r => setTimeout(r, 2000));
     if (d.materiale_audio) {
-      const a1 = new Audio(SERVER + '/cache/materiali/' + d.materiale_audio);
+      const a1 = new Audio(SERVER + '/cache/' + d.materiale_audio);
       await new Promise(res => { a1.onended = res; a1.onerror = () => res(); a1.play().catch(() => res()); });
     }
     await new Promise(r => setTimeout(r, 800));
     if (d.toccare_audio) {
-      const a2 = new Audio(SERVER + '/cache/toccare/' + d.toccare_audio);
+      const a2 = new Audio(SERVER + '/cache/' + d.toccare_audio);
       await new Promise(res => { a2.onended = res; a2.onerror = () => res(); a2.play().catch(() => res()); });
     }
   } catch(e) { console.warn('riproduciInfoCarosello:', e.message); }
