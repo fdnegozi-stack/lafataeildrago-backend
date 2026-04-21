@@ -932,8 +932,9 @@ camInp.addEventListener('change', async () => {
     } else {
       prevRes.textContent = '';
       console.log(`📷 sotto soglia: ${top ? (top.similarity*100).toFixed(0)+'%' : 'nessun risultato'}`);
-      const MSG = { it:"Non ho riconosciuto l'articolo. Prova a fotografarlo da più vicino!", en:"I didn't recognize this item. Try taking a closer photo!", de:"Ich habe den Artikel nicht erkannt. Versuche ein näheres Foto!" };
-      await speak(MSG[LANG]||MSG.it, 'foto');
+      // Foto non riconosciuta → video di servizio fisso
+      prevDiv.classList.remove('show');
+      await riproduciServizio('it_non_ho_riconosciuto', '', null);
     }
   } catch(e) { prevRes.textContent = 'Errore: '+e.message; console.log('📷 errore:', e.message); }
   finally {
