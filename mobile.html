@@ -1006,14 +1006,22 @@ function startListening() {
         followUpUsato = false; // reset per nuova domanda
         if (serviceVideo) {
           await riproduciServizio(serviceVideo, risposta, prodotti);
-        } else {
-          await speak(risposta, 'normale', videoHash);
-          // Avvia follow-up se il server lo segnala e non c'è carosello
+        } else if (videoHash) {
+          // Riproduci video lipsync direttamente dalla cache
+          const _path = videoHash.startsWith('c')
+            ? `/cache/audio_clienti/${videoHash}.mp4`
+            : `/cache/base/${videoHash}.mp4`;
+          await new Promise(resolve => {
+            stopLoop();
+            crossfadeTo(SERVER + _path, false, () => { loopPool(POOL.lunga); resolve(); }, true);
+          });
           if (followUp && !prodotti?.length) {
-            // Estrai tipo articolo dall'ultima domanda utente
             const ultimaDomanda = storiaCon.filter(s=>s.role==='user').slice(-1)[0]?.content || '';
             avviaFollowUp(ultimaDomanda, followUpTipo);
           }
+        } else {
+          // Nessun video disponibile — video servizio generico
+          await riproduciServizio('it_servizio_non_capisco', risposta, null);
         }
         isBusy=false; setStatus('idle');
       },
