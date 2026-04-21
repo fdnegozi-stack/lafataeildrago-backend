@@ -897,35 +897,32 @@ camInp.addEventListener('change', async () => {
         clearTimeout(t);
         if (r2 && r2.ok) {
           const t2 = await r2.text();
-          let frase1 = '', frase2 = '';
+          let fotoAudio = null;
           for (const line of t2.split('\n')) {
             if (!line.startsWith('data: ')) continue;
-            try { const j=JSON.parse(line.slice(6)); if(j.frase1) frase1=j.frase1; if(j.frase2) frase2=j.frase2; if(j.token) frase1+=j.token; } catch{}
+            try { const j=JSON.parse(line.slice(6)); if(j.fotoAudio) fotoAudio=j.fotoAudio; } catch{}
           }
-          console.log('📷 Frase1:', frase1.substring(0,60));
-          console.log('📷 Frase2:', frase2.substring(0,60));
+          console.log('📷 fotoAudio:', fotoAudio);
 
-          // Prima mostra foto del sito nell'overlay, poi parla
-          if (frase2.trim() || frase1.trim()) {
-            // Nascondi preview foto cliente
-            prevDiv.classList.remove('show');
-            // Mostra foto prodotto sito nell'overlay carosello
-            const _p = {
-              id: top.id,
-              descrizione: top.nome || top.descrizione || '',
-              prezzo: top.prezzo || 0,
-              dimensioni: top.dimensioni || '',
-              categoria: top.categoria || '',
-              sottocategoria: top.sottocategoria || '',
-              giacenzaProprio: top.giacenzaProprio || 1,
-              giacenzaAltro: top.giacenzaAltro || 0
-            };
-            mostraProdotti([_p]);
-            // Attendi che l'overlay sia visibile
-            await new Promise(r => setTimeout(r, 400));
-            // Parla frase1 poi frase2
-            const _fraseAudio = frase1.trim() || frase2.trim();
-            if (_fraseAudio) await speak(_fraseAudio, 'foto');
+          // Mostra foto del sito nell'overlay carosello
+          prevDiv.classList.remove('show');
+          const _p = {
+            id: top.id,
+            descrizione: top.nome || top.descrizione || '',
+            prezzo: top.prezzo || 0,
+            dimensioni: top.dimensioni || '',
+            categoria: top.categoria || '',
+            sottocategoria: top.sottocategoria || '',
+            giacenzaProprio: top.giacenzaProprio || 1,
+            giacenzaAltro: top.giacenzaAltro || 0
+          };
+          mostraProdotti([_p]);
+          await new Promise(r => setTimeout(r, 400));
+
+          // Riproduci audio foto fisso da cache/foto/
+          if (fotoAudio) {
+            const aud = new Audio(SERVER + '/cache/foto/' + fotoAudio);
+            await new Promise(res => { aud.onended=res; aud.onerror=()=>res(); aud.play().catch(()=>res()); });
           }
         }
       } catch(e) { console.log('📷 errore avatar:', e.message); }
