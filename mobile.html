@@ -588,12 +588,12 @@ function avviaFollowUp(tipoArticolo, tipo) {
 // ── Carosello prodotti ───────────────────────────────────────────
 let _carProdotti = [], _carIdx = 0, _carSwipeX = null;
 
-function mostraProdotti(prodotti) {
+function mostraProdotti(prodotti, skipInfo=false) {
   if (!prodotti || !prodotti.length) return;
-  apriCarosello(prodotti);
+  apriCarosello(prodotti, skipInfo);
 }
 
-function apriCarosello(prodotti) {
+function apriCarosello(prodotti, skipInfo=false) {
   _carProdotti = prodotti;
   _carIdx = 0;
   _renderCar();
@@ -604,9 +604,9 @@ function apriCarosello(prodotti) {
   ov.addEventListener('touchstart', _carTouchStart, { passive: true });
   ov.addEventListener('touchend',   _carTouchEnd,   { passive: true });
   ov.onclick = (e) => { if (e.target === ov) chiudiCarosello(); };
-  if (prodotti[0]?.sottocategoria) {
+  if (!skipInfo && prodotti[0]?.sottocategoria) {
     console.log('📷 riproduciInfo:', prodotti[0].sottocategoria, '/', prodotti[0].categoria);
-    riproduciInfoCarosello(prodotti[0].sottocategoria, prodotti[0].categoria);
+    riproduciInfoCarosello(prodotti[0].sottocategoria, prodotti[0].categoria, 2000);
   }
 }
 
@@ -619,19 +619,19 @@ function chiudiCarosello() {
 }
 
 // ── Info materiali/toccare durante carosello ─────────────────────
-async function riproduciInfoCarosello(sottocategoria, categoria) {
+async function riproduciInfoCarosello(sottocategoria, categoria, delayMs=2000) {
   if (!sottocategoria) return;
   try {
     const _url = SERVER + '/api/info-sottocategoria?sottocategoria=' + encodeURIComponent(sottocategoria) + (categoria ? '&categoria=' + encodeURIComponent(categoria) : '');
     const r = await fetch(_url);
     const d = await r.json();
     if (!d.ok) return;
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, delayMs));
     if (d.materiale_audio) {
       const a1 = new Audio(SERVER + '/cache/' + d.materiale_audio);
       await new Promise(res => { a1.onended = res; a1.onerror = () => res(); a1.play().catch(() => res()); });
     }
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 1000));
     if (d.toccare_audio) {
       const a2 = new Audio(SERVER + '/cache/' + d.toccare_audio);
       await new Promise(res => { a2.onended = res; a2.onerror = () => res(); a2.play().catch(() => res()); });
@@ -916,14 +916,17 @@ camInp.addEventListener('change', async () => {
             giacenzaProprio: top.giacenzaProprio || 1,
             giacenzaAltro: top.giacenzaAltro || 0
           };
-          mostraProdotti([_p]);
+          mostraProdotti([_p], true);
           await new Promise(r => setTimeout(r, 400));
 
           // Riproduci audio foto fisso da cache/foto/
           if (fotoAudio) {
             const aud = new Audio(SERVER + '/cache/foto/' + fotoAudio);
             await new Promise(res => { aud.onended=res; aud.onerror=()=>res(); aud.play().catch(()=>res()); });
+            await new Promise(r => setTimeout(r, 1000));
           }
+          // Materiali e toccare subito dopo (delay=0, già aspettato)
+          if (_p.sottocategoria) riproduciInfoCarosello(_p.sottocategoria, _p.categoria, 0);
         }
       } catch(e) { console.log('📷 errore avatar:', e.message); }
     } else {
