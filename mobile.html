@@ -936,11 +936,10 @@ camInp.addEventListener('change', async () => {
   } catch(e) { prevRes.textContent = 'Errore: '+e.message; console.log('📷 errore:', e.message); }
   finally {
     const pd = document.getElementById('photoPreview');
-    if (pd) pd.style.cssText='';
+    if (pd) { pd.classList.remove('show'); pd.style.cssText=''; }
     const pi = document.getElementById('photoImg');
     if (pi) pi.style.cssText='';
     isBusy=false; setStatus('idle'); camInp.value='';
-    loopPool(POOL.lunga);
   }
 });
 
