@@ -159,12 +159,14 @@
 // ── Config ───────────────────────────────────────────────────────
 let SERVER = 'https://silly-hobby-latino-comfort.trycloudflare.com';
 const GITHUB_BASE = 'https://raw.githubusercontent.com/fdnegozi-stack/lafataeildrago-backend/main';
+// Video grandi serviti direttamente via LAN — evita timeout Cloudflare
+const VIDEO_SERVER = 'http://192.168.1.103:3000';
 const LINGUE = ['it','en','de','fr','es','nl','pl','cs','sk','hu','ro','bg','sl','hr','sr','bs','sq','el','uk','ru','et','lv','lt','sv','no','da','fi'];
 const _lr = (navigator.language||'it').split('-')[0].toLowerCase();
 const LANG = LINGUE.includes(_lr) ? _lr : 'it';
 
 // ── Video pool ────────────────────────────────────────────────────
-let V = SERVER + '/video/';
+let V = VIDEO_SERVER + '/video/';
 const POOL = {
   entrata:      [],
   breve:        [],
@@ -178,7 +180,7 @@ const POOL = {
 };
 
 function aggiornaPool() {
-  V = SERVER + '/video/';
+  V = VIDEO_SERVER + '/video/';
   POOL.entrata      = [SERVER+'/video/entrata.mp4'];
   POOL.breve        = ['attesa1_3','attesa2_3','attesa1_4','attesa1_5'].map(n=>SERVER+'/video/'+n+'.mp4');
   POOL.lunga        = ['attesa1_9','attesa2_9','attesa3_9','attesa4_9'].map(n=>SERVER+'/video/'+n+'.mp4');
@@ -537,7 +539,7 @@ async function riproduciServizio(serviceVideo, testo, prodotti) {
     } catch(e) { console.warn('riproduciServizio audio:', e.message); }
   } else {
     // Ha video lipsync — prima Tania parla, poi carosello
-    const videoUrl = SERVER + '/cache/servizio/' + serviceVideo + '.mp4';
+    const videoUrl = VIDEO_SERVER + '/cache/servizio/' + serviceVideo + '.mp4';
     console.log('🎬 servizio video:', videoUrl, '| prodotti:', prodotti?.length || 0);
     let risolto = false;
     const apriDopoVideo = () => {
@@ -588,12 +590,12 @@ function avviaFollowUp(tipoArticolo, tipo) {
 // ── Carosello prodotti ───────────────────────────────────────────
 let _carProdotti = [], _carIdx = 0, _carSwipeX = null;
 
-function mostraProdotti(prodotti, skipInfo=false) {
+function mostraProdotti(prodotti) {
   if (!prodotti || !prodotti.length) return;
-  apriCarosello(prodotti, skipInfo);
+  apriCarosello(prodotti);
 }
 
-function apriCarosello(prodotti, skipInfo=false) {
+function apriCarosello(prodotti) {
   _carProdotti = prodotti;
   _carIdx = 0;
   _renderCar();
@@ -604,9 +606,9 @@ function apriCarosello(prodotti, skipInfo=false) {
   ov.addEventListener('touchstart', _carTouchStart, { passive: true });
   ov.addEventListener('touchend',   _carTouchEnd,   { passive: true });
   ov.onclick = (e) => { if (e.target === ov) chiudiCarosello(); };
-  if (!skipInfo && prodotti[0]?.sottocategoria) {
+  if (prodotti[0]?.sottocategoria) {
     console.log('📷 riproduciInfo:', prodotti[0].sottocategoria, '/', prodotti[0].categoria);
-    riproduciInfoCarosello(prodotti[0].sottocategoria, prodotti[0].categoria, 2000);
+    riproduciInfoCarosello(prodotti[0].sottocategoria, prodotti[0].categoria);
   }
 }
 
@@ -619,19 +621,19 @@ function chiudiCarosello() {
 }
 
 // ── Info materiali/toccare durante carosello ─────────────────────
-async function riproduciInfoCarosello(sottocategoria, categoria, delayMs=2000) {
+async function riproduciInfoCarosello(sottocategoria, categoria) {
   if (!sottocategoria) return;
   try {
     const _url = SERVER + '/api/info-sottocategoria?sottocategoria=' + encodeURIComponent(sottocategoria) + (categoria ? '&categoria=' + encodeURIComponent(categoria) : '');
     const r = await fetch(_url);
     const d = await r.json();
     if (!d.ok) return;
-    await new Promise(r => setTimeout(r, delayMs));
+    await new Promise(r => setTimeout(r, 2000));
     if (d.materiale_audio) {
       const a1 = new Audio(SERVER + '/cache/' + d.materiale_audio);
       await new Promise(res => { a1.onended = res; a1.onerror = () => res(); a1.play().catch(() => res()); });
     }
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 800));
     if (d.toccare_audio) {
       const a2 = new Audio(SERVER + '/cache/' + d.toccare_audio);
       await new Promise(res => { a2.onended = res; a2.onerror = () => res(); a2.play().catch(() => res()); });
@@ -916,17 +918,14 @@ camInp.addEventListener('change', async () => {
             giacenzaProprio: top.giacenzaProprio || 1,
             giacenzaAltro: top.giacenzaAltro || 0
           };
-          mostraProdotti([_p], true);
+          mostraProdotti([_p]);
           await new Promise(r => setTimeout(r, 400));
 
           // Riproduci audio foto fisso da cache/foto/
           if (fotoAudio) {
             const aud = new Audio(SERVER + '/cache/foto/' + fotoAudio);
             await new Promise(res => { aud.onended=res; aud.onerror=()=>res(); aud.play().catch(()=>res()); });
-            await new Promise(r => setTimeout(r, 1000));
           }
-          // Materiali e toccare subito dopo (delay=0, già aspettato)
-          if (_p.sottocategoria) riproduciInfoCarosello(_p.sottocategoria, _p.categoria, 0);
         }
       } catch(e) { console.log('📷 errore avatar:', e.message); }
     } else {
@@ -939,10 +938,11 @@ camInp.addEventListener('change', async () => {
   } catch(e) { prevRes.textContent = 'Errore: '+e.message; console.log('📷 errore:', e.message); }
   finally {
     const pd = document.getElementById('photoPreview');
-    if (pd) { pd.classList.remove('show'); pd.style.cssText=''; }
+    if (pd) pd.style.cssText='';
     const pi = document.getElementById('photoImg');
     if (pi) pi.style.cssText='';
     isBusy=false; setStatus('idle'); camInp.value='';
+    loopPool(POOL.lunga);
   }
 });
 
@@ -1011,8 +1011,8 @@ function startListening() {
         } else if (videoHash) {
           // Riproduci video lipsync direttamente dalla cache
           const _path = videoHash.startsWith('c')
-            ? `/cache/audio_clienti/${videoHash}.mp4`
-            : `/cache/base/${videoHash}.mp4`;
+            ? VIDEO_SERVER + `/cache/audio_clienti/${videoHash}.mp4`
+            : VIDEO_SERVER + `/cache/base/${videoHash}.mp4`;
           await new Promise(resolve => {
             stopLoop();
             crossfadeTo(SERVER + _path, false, () => { loopPool(POOL.lunga); resolve(); }, true);
