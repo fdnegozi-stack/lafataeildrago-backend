@@ -159,14 +159,39 @@
 // ── Config ───────────────────────────────────────────────────────
 let SERVER = 'https://silly-hobby-latino-comfort.trycloudflare.com';
 const GITHUB_BASE = 'https://raw.githubusercontent.com/fdnegozi-stack/lafataeildrago-backend/main';
-// Video grandi serviti direttamente via LAN — evita timeout Cloudflare
-const VIDEO_SERVER = 'http://192.168.1.103:3000';
+
+// VIDEO_SERVER: IP locale per video grandi (evita timeout Cloudflare)
+// Viene scoperto automaticamente al caricamento
+let VIDEO_SERVER = '';
+
+async function scopriVideoServer(lanFromJson) {
+  // 1. Usa l'IP LAN pubblicato da aggiorna_tunnel.js nel tunnel-url.json
+  if (lanFromJson) {
+    try {
+      const r = await fetch(lanFromJson + '/api/ping', { signal: AbortSignal.timeout(1500) });
+      if (r.ok) {
+        VIDEO_SERVER = lanFromJson;
+        _aggiornaV();
+        console.log('📡 VIDEO_SERVER (da tunnel-url.json):', VIDEO_SERVER);
+        return;
+      }
+    } catch {}
+  }
+  // 2. Fallback: usa il tunnel Cloudflare
+  VIDEO_SERVER = SERVER;
+  _aggiornaV();
+  console.log('⚠ VIDEO_SERVER: fallback tunnel (LAN non raggiungibile)');
+}
+
+function _aggiornaV() {
+  V = VIDEO_VIDEO_SERVER + '/video/';
+}
 const LINGUE = ['it','en','de','fr','es','nl','pl','cs','sk','hu','ro','bg','sl','hr','sr','bs','sq','el','uk','ru','et','lv','lt','sv','no','da','fi'];
 const _lr = (navigator.language||'it').split('-')[0].toLowerCase();
 const LANG = LINGUE.includes(_lr) ? _lr : 'it';
 
 // ── Video pool ────────────────────────────────────────────────────
-let V = VIDEO_SERVER + '/video/';
+let V = '';  // impostata da _aggiornaV() dopo scoperta LAN
 const POOL = {
   entrata:      [],
   breve:        [],
@@ -370,11 +395,11 @@ async function caricaTunnelUrl() {
       if (d.url && d.url !== SERVER) {
         SERVER = d.url;
         console.log('✓ Tunnel URL:', SERVER);
-        return;
       } else if (d.url) {
         console.log('✓ Tunnel URL invariato:', SERVER);
-        return;
       }
+      if (d.lan) window._lanUrl = d.lan;
+      return;
     } catch(e) {
       console.log(`tunnel-url tentativo ${attempt} fallito:`, e.message);
       if (attempt < 5) await new Promise(r => setTimeout(r, 2000));
@@ -398,6 +423,7 @@ async function avvia() {
   } catch(e) { console.log('Audio unlock errore:', e.message); }
 
   await caricaTunnelUrl();
+  await scopriVideoServer(window._lanUrl);
   aggiornaPool();
 
   // Verifica se il server è raggiungibile
