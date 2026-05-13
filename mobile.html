@@ -1041,7 +1041,7 @@ function startListening() {
             : VIDEO_SERVER + `/cache/base/${videoHash}.mp4`;
           await new Promise(resolve => {
             stopLoop();
-            crossfadeTo(SERVER + _path, false, () => { loopPool(POOL.lunga); resolve(); }, true);
+            crossfadeTo(_path, false, () => { loopPool(POOL.lunga); resolve(); }, true);
           });
           if (followUp && !prodotti?.length) {
             const ultimaDomanda = storiaCon.filter(s=>s.role==='user').slice(-1)[0]?.content || '';
