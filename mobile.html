@@ -85,6 +85,8 @@
 </style>
 <script>
 (function(){
+  const _dev = new URLSearchParams(window.location.search).get('dev') === '1';
+  if (!_dev) return; // DBG visibile solo con ?dev=1
   const panel = document.createElement('div'); panel.id='dbg';
   document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(panel));
   const btn = document.createElement('button'); btn.id='dbgBtn'; btn.textContent='DBG';
@@ -428,16 +430,11 @@ async function avvia() {
   // Blocca accesso se non siamo in LAN — tranne se ?dev=1 (per test sviluppatore)
   const _isDev = new URLSearchParams(window.location.search).get('dev') === '1';
   if (!_isDev && VIDEO_SERVER === SERVER) {
-    document.body.style.background = '#0a0800';
-    document.body.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0a0800;color:#d4af37;font-family:serif;text-align:center;padding:40px">
-        <div style="font-size:3rem;margin-bottom:20px">🧚</div>
-        <div style="font-size:1.4rem;font-weight:bold;margin-bottom:12px">La Fata &amp; il Drago</div>
-        <div style="font-size:1rem;color:#a08030;line-height:1.6">
-          Tania è disponibile<br>solo all'interno del negozio.<br><br>
-          Vieni a trovarci! ✨
-        </div>
-      </div>`;
+    startForest();
+    document.getElementById('ui').classList.add('show', 'offline');
+    document.getElementById('logoTop').classList.add('show');
+    crossfadeTo(GITHUB_BASE + '/sfondo_vuoto.mp4', true);
+    console.log('📴 Fuori negozio — modalità offline');
     return;
   }
 
