@@ -387,7 +387,8 @@ window.addEventListener('beforeunload', () => {
 async function caricaTunnelUrl() {
   for (let attempt = 1; attempt <= 5; attempt++) {
     try {
-      const r = await fetch('https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url.json?t='+Date.now()+'&r='+Math.random(), {
+      const _neg = (new URLSearchParams(window.location.search).get('negozio') || 'ba').toLowerCase();
+      const r = await fetch(`https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url-${_neg}.json?t=${Date.now()}&r=${Math.random()}`, {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
