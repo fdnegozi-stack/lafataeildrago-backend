@@ -387,9 +387,7 @@ window.addEventListener('beforeunload', () => {
 async function caricaTunnelUrl() {
   for (let attempt = 1; attempt <= 5; attempt++) {
     try {
-      const _neg = (new URLSearchParams(window.location.search).get('negozio') || '').toLowerCase();
-      const _tunnelFile = _neg === 'ba' ? 'tunnel-url-ba.json' : _neg === 'bc' ? 'tunnel-url-bc.json' : 'tunnel-url.json';
-      const r = await fetch('https://fdnegozi-stack.github.io/lafataeildrago-backend/' + _tunnelFile + '?t='+Date.now()+'&r='+Math.random(), {
+      const r = await fetch('https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url.json?t='+Date.now()+'&r='+Math.random(), {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
@@ -431,7 +429,7 @@ async function avvia() {
   // Verifica se il server è raggiungibile
   let serverOnline = false;
   try {
-    const ping = await fetch(SERVER+'/api/ping', { signal: AbortSignal.timeout(5000) });
+    const ping = await fetch(SERVER+'/api/ping?sid='+_SID+'&negozio='+NEGOZIO, { signal: AbortSignal.timeout(5000) });
     serverOnline = ping.ok;
   } catch(e) {}
 
@@ -452,6 +450,10 @@ async function avvia() {
   }
 
   startForest();
+  // Ping periodico per mantenere sessione attiva (ogni 3 minuti)
+  setInterval(() => {
+    fetch(SERVER+'/api/ping?sid='+_SID+'&negozio='+NEGOZIO).catch(()=>{});
+  }, 3 * 60 * 1000);
   document.getElementById('ui').classList.add('show');
   document.getElementById('ui').classList.remove('offline');
   document.getElementById('logoTop').classList.add('show');
@@ -473,6 +475,8 @@ const storiaCon = [];
 
 // ── Negozio corrente (da URL ?negozio=Ba o Bc) ──────────────────
 const NEGOZIO = new URLSearchParams(window.location.search).get('negozio') || '';
+// ID sessione univoco per tracking connessioni attive
+const _SID = 'sid_' + Math.random().toString(36).substring(2,10) + '_' + Date.now();
 const ring    = document.getElementById('statusRing');
 const bubble  = document.getElementById('responseBubble');
 const overlay = document.getElementById('listeningOverlay');
