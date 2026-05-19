@@ -85,8 +85,6 @@
 </style>
 <script>
 (function(){
-  const _dev = new URLSearchParams(window.location.search).get('dev') === '1';
-  if (!_dev) return; // DBG visibile solo con ?dev=1
   const panel = document.createElement('div'); panel.id='dbg';
   document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(panel));
   const btn = document.createElement('button'); btn.id='dbgBtn'; btn.textContent='DBG';
@@ -389,7 +387,9 @@ window.addEventListener('beforeunload', () => {
 async function caricaTunnelUrl() {
   for (let attempt = 1; attempt <= 5; attempt++) {
     try {
-      const r = await fetch('https://fdnegozi-stack.github.io/lafataeildrago-backend/tunnel-url.json?t='+Date.now()+'&r='+Math.random(), {
+      const _neg = (new URLSearchParams(window.location.search).get('negozio') || '').toLowerCase();
+      const _tunnelFile = _neg === 'ba' ? 'tunnel-url-ba.json' : _neg === 'bc' ? 'tunnel-url-bc.json' : 'tunnel-url.json';
+      const r = await fetch('https://fdnegozi-stack.github.io/lafataeildrago-backend/' + _tunnelFile + '?t='+Date.now()+'&r='+Math.random(), {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
@@ -426,18 +426,6 @@ async function avvia() {
 
   await caricaTunnelUrl();
   await scopriVideoServer(window._lanUrl);
-
-  // Blocca accesso se non siamo in LAN — tranne se ?dev=1 (per test sviluppatore)
-  const _isDev = new URLSearchParams(window.location.search).get('dev') === '1';
-  if (!_isDev && VIDEO_SERVER === SERVER) {
-    startForest();
-    document.getElementById('ui').classList.add('show', 'offline');
-    document.getElementById('logoTop').classList.add('show');
-    crossfadeTo(GITHUB_BASE + '/sfondo_vuoto.mp4', true);
-    console.log('📴 Fuori negozio — modalità offline');
-    return;
-  }
-
   aggiornaPool();
 
   // Verifica se il server è raggiungibile
